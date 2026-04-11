@@ -1,0 +1,5 @@
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/CMakeFiles/authorization_service.dir
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/CMakeFiles/edit_cache.dir
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/CMakeFiles/rebuild_cache.dir
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-build/CMakeFiles/edit_cache.dir
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-build/CMakeFiles/rebuild_cache.dir

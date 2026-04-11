@@ -1,0 +1,3 @@
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-subbuild/CMakeFiles/json-populate.dir
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-subbuild/CMakeFiles/edit_cache.dir
+/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-subbuild/CMakeFiles/rebuild_cache.dir
