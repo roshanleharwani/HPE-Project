@@ -14,10 +14,9 @@ public class ClearingService {
 
     public void process(String message) {
 
-        // IMPORTANT: simulate clearing logic (gateway/bank processing)
+       
         System.out.println("Clearing processing: " + message);
-
-        // IMPORTANT: forward to next stage
+        
         producer.send(message);
     }
 }
