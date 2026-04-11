@@ -15,8 +15,6 @@ public class PaymentAuthorizedConsumer {
 
     @KafkaListener(topics = "payment_authorized", groupId = "clearing-group")
     public void consume(String message) {
-
-        // IMPORTANT: receives authorized payment event
         clearingService.process(message);
     }
 }
