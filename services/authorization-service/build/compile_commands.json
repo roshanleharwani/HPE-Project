@@ -1,0 +1,26 @@
+[
+{
+  "directory": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build",
+  "command": "/usr/bin/c++  -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/include -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-src/include -std=gnu++17 -o CMakeFiles/authorization_service.dir/src/kafka/KafkaConsumer.cpp.o -c /home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/kafka/KafkaConsumer.cpp",
+  "file": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/kafka/KafkaConsumer.cpp",
+  "output": "CMakeFiles/authorization_service.dir/src/kafka/KafkaConsumer.cpp.o"
+},
+{
+  "directory": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build",
+  "command": "/usr/bin/c++  -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/include -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-src/include -std=gnu++17 -o CMakeFiles/authorization_service.dir/src/kafka/KafkaProducer.cpp.o -c /home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/kafka/KafkaProducer.cpp",
+  "file": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/kafka/KafkaProducer.cpp",
+  "output": "CMakeFiles/authorization_service.dir/src/kafka/KafkaProducer.cpp.o"
+},
+{
+  "directory": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build",
+  "command": "/usr/bin/c++  -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/include -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-src/include -std=gnu++17 -o CMakeFiles/authorization_service.dir/src/main.cpp.o -c /home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/main.cpp",
+  "file": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/main.cpp",
+  "output": "CMakeFiles/authorization_service.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build",
+  "command": "/usr/bin/c++  -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/include -I/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/build/_deps/json-src/include -std=gnu++17 -o CMakeFiles/authorization_service.dir/src/services/AuthorizationEngine.cpp.o -c /home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/services/AuthorizationEngine.cpp",
+  "file": "/home/kumaresh/Desktop/Dev/HPE/HPE-Project/services/authorization-service/src/services/AuthorizationEngine.cpp",
+  "output": "CMakeFiles/authorization_service.dir/src/services/AuthorizationEngine.cpp.o"
+}
+]

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/authorization_service.dir/src/kafka/KafkaConsumer.cpp.o CMakeFiles/authorization_service.dir/src/kafka/KafkaProducer.cpp.o CMakeFiles/authorization_service.dir/src/main.cpp.o CMakeFiles/authorization_service.dir/src/services/AuthorizationEngine.cpp.o -o authorization_service  -lrdkafka++ -lpqxx 
