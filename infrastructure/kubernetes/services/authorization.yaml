@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authorization-service
+  labels:
+    app: authorization-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authorization-service
+  template:
+    metadata:
+      labels:
+        app: authorization-service
+    spec:
+      containers:
+      - name: auth-engine
+        image: tricko98/auth-service:v1 
+        imagePullPolicy: Always
+        env:
+        # Turning DNS back on so Kafka can route its advertised listeners!
+        - name: KAFKA_BROKERS
+          value: "my-kafka.default.svc.cluster.local:9092"
+        # Using the short DNS name for Postgres (KEEP YOUR DECODED PASSWORD HERE)
+        - name: DB_CONN
+          value: "postgresql://postgres:adminpassword@postgres-postgresql:5432/postgres"
+          
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"

@@ -1,0 +1,8 @@
+{
+    "transaction_id": "tx-aws-capstone-001",
+    "user_id": "u-456",
+    "amount": 150.00,
+    "currency": "USD",
+    "payment_intent_id": "pi_123",
+    "payment_method_id": "card_tok_999"
+}
