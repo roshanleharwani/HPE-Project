@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clearing-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clearing-service
+  template:
+    metadata:
+      labels:
+        app: clearing-service
+    spec:
+      containers:
+      - name: clearing-service
+        image: tricko98/clearing-service:v1
+        env:
+        # Crucial: Point this to the exact same Kafka broker your API Gateway uses
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"

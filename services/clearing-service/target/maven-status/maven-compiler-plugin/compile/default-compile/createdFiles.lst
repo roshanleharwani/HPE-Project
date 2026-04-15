@@ -1,0 +1,4 @@
+com\payments\clearing\service\ClearingService.class
+com\payments\clearing\Application.class
+com\payments\clearing\consumer\PaymentAuthorizedConsumer.class
+com\payments\clearing\producer\PaymentClearedProducer.class
