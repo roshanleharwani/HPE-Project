@@ -16,20 +16,17 @@ spec:
     spec:
       containers:
       - name: auth-engine
-        image: tricko98/auth-service:v1 
+        image: tricko98/auth-service:v1
         imagePullPolicy: Always
         env:
-        # Turning DNS back on so Kafka can route its advertised listeners!
         - name: KAFKA_BROKERS
-          value: "my-kafka.default.svc.cluster.local:9092"
-        # Using the short DNS name for Postgres (KEEP YOUR DECODED PASSWORD HERE)
+          value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"
         - name: DB_CONN
           value: "postgresql://postgres:adminpassword@postgres-postgresql:5432/postgres"
-          
         resources:
           requests:
             memory: "128Mi"
             cpu: "100m"
           limits:
             memory: "256Mi"
-            cpu: "250m"
+            cpu: "250m"

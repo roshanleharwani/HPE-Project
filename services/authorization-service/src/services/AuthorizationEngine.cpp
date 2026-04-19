@@ -20,25 +20,31 @@ bool AuthorizationEngine::authorize(const PaymentInitiatedEvent& event, std::str
     try {
         pqxx::nontransaction tx(conn);
 
-        // Single optimized LEFT JOIN query cutting down 4 round-trips to 1
+        // Single optimized LEFT JOIN query using $1..$3 placeholders (SQL-injection safe)
         std::string query = 
             "SELECT "
             "  u.id AS user_exists, "
             "  pi.status AS intent_status, "
-            "  pi.amount AS intent_amount, "
+            "  pi.amount::text AS intent_amount, "
             "  pm.method_type, "
             "  pm.expiry_year, "
             "  pm.expiry_month, "
+            // FIX 1: created_at is indexed (idx_transactions_created); updated_at is NOT
             "  (SELECT COALESCE(SUM(amount), 0) FROM transactions "
-            "   WHERE updated_at >= CURRENT_DATE "
-            "   AND payment_intent_id IN (SELECT id FROM payment_intents WHERE user_id = " + tx.quote(event.user_id) + ") "
-            "   AND status = 'AUTHORIZED') AS total_today "
+            "   WHERE created_at >= CURRENT_DATE "
+            "   AND payment_intent_id IN (SELECT id FROM payment_intents WHERE user_id = $1::uuid) "
+            // FIX 2: transactions.status is a custom enum type, must cast the literal
+            "   AND status = 'AUTHORIZED'::transaction_status) AS total_today "
             "FROM users u "
-            "LEFT JOIN payment_intents pi ON pi.id = " + tx.quote(event.payment_intent_id) + " AND pi.user_id = u.id "
-            "LEFT JOIN payment_methods pm ON pm.id = " + tx.quote(event.payment_method_id) + " AND pm.user_id = u.id "
-            "WHERE u.id = " + tx.quote(event.user_id);
+            "LEFT JOIN payment_intents pi ON pi.id = $2::uuid AND pi.user_id = u.id "
+            "LEFT JOIN payment_methods pm ON pm.id = $3::uuid AND pm.user_id = u.id "
+            "WHERE u.id = $1::uuid";
 
-        pqxx::result r = tx.exec(query);
+        pqxx::result r = tx.exec_params(query,
+            event.user_id,
+            event.payment_intent_id,
+            event.payment_method_id
+        );
         if (r.empty()) {
             out_reason = "User not found";
             return false;
@@ -51,9 +57,16 @@ bool AuthorizationEngine::authorize(const PaymentInitiatedEvent& event, std::str
             out_reason = "Payment intent not found or mismatch";
             return false;
         }
-        
-        double intent_amount = row["intent_amount"].as<double>(0.0);
-        if (intent_amount != event.amount) {
+
+        // FIX 3: amount is numeric(12,2) in DB. Casting to double loses precision
+        // (e.g. 100.10 stored as numeric != 100.10 as IEEE754 double).
+        // Compare as strings: DB value cast to text, event amount rounded to 2dp.
+        std::string db_amount_str    = row["intent_amount"].as<std::string>("");
+        std::string event_amount_str = std::to_string(event.amount);
+        auto dot = event_amount_str.find('.');
+        if (dot != std::string::npos && event_amount_str.size() > dot + 3)
+            event_amount_str = event_amount_str.substr(0, dot + 3);
+        if (db_amount_str != event_amount_str) {
             out_reason = "Payment amount mismatch with intent";
             return false;
         }
@@ -64,12 +77,15 @@ bool AuthorizationEngine::authorize(const PaymentInitiatedEvent& event, std::str
             return false;
         }
 
-        // 4. Expiration check for cards
+        // 4. Expiration check for cards using DB-side current year/month
         std::string method_type = row["method_type"].as<std::string>("");
         if (method_type == "CARD") {
-            int exp_year = row["expiry_year"].as<int>(0);
+            pqxx::result date_r = tx.exec("SELECT EXTRACT(YEAR FROM CURRENT_DATE)::int AS yr, EXTRACT(MONTH FROM CURRENT_DATE)::int AS mo");
+            int cur_year  = date_r[0]["yr"].as<int>();
+            int cur_month = date_r[0]["mo"].as<int>();
+            int exp_year  = row["expiry_year"].as<int>(0);
             int exp_month = row["expiry_month"].as<int>(0);
-            if (exp_year < 2024 || (exp_year == 2024 && exp_month < 4)) {
+            if (exp_year < cur_year || (exp_year == cur_year && exp_month < cur_month)) {
                 out_reason = "Payment method expired";
                 return false;
             }
