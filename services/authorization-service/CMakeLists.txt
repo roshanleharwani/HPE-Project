@@ -4,14 +4,8 @@ project(authorization-service)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(FetchContent)
-
-# Fetch nlohmann/json so we don't rely on host package
-FetchContent_Declare(
-    json
-    URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
-)
-FetchContent_MakeAvailable(json)
+# nlohmann/json is installed via apt (nlohmann-json3-dev) in the Dockerfile
+find_package(nlohmann_json 3.2.0 REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(RDKAFKA REQUIRED rdkafka++)
@@ -22,8 +16,8 @@ include_directories(include)
 include_directories(${RDKAFKA_INCLUDE_DIRS})
 include_directories(${PQXX_INCLUDE_DIRS})
 
-# Source files (we will add them as we create them)
-file(GLOB SOURCES "src/*.cpp" "src/kafka/*.cpp" "src/services/*.cpp" "src/models/*.cpp")
+# Source files
+file(GLOB SOURCES "src/*.cpp" "src/kafka/*.cpp" "src/services/*.cpp" "src/config/*.cpp" "src/models/*.cpp")
 
 add_executable(authorization_service ${SOURCES})
 
@@ -32,4 +26,7 @@ target_link_libraries(authorization_service
     ${RDKAFKA_LIBRARIES}
     ${PQXX_LIBRARIES}
     nlohmann_json::nlohmann_json
+    pthread
 )
+
+target_compile_options(authorization_service PRIVATE ${RDKAFKA_CFLAGS_OTHER} ${PQXX_CFLAGS_OTHER})

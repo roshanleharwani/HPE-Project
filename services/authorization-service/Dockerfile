@@ -16,7 +16,7 @@ WORKDIR /app
 COPY . .
 
 # Build the project
-RUN mkdir build && cd build && cmake .. && make -j$(nproc)
+RUN rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 FROM ubuntu:22.04 AS runtime
 
@@ -27,6 +27,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # although in a true prod image we'd pin the specific runtime e.g. libpqxx-6.4
 RUN apt-get update && apt-get install -y \
     librdkafka1 \
+    librdkafka++1 \
     libpq5 \
     libpqxx-dev \
     ca-certificates \

@@ -1,0 +1,74 @@
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    librdkafka-dev \
+    libpqxx-dev \
+    nlohmann-json3-dev \
+    libssl-dev \
+    pkg-config
+
+WORKDIR /app
+COPY . .
+
+# Build the project
+RUN rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc)
+
+FROM ubuntu:22.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install runtime dependencies. 
+# libpqxx-dev is included here to ensure the .so files are present regardless of exact version string, 
+# although in a true prod image we'd pin the specific runtime e.g. libpqxx-6.4
+RUN apt-get update && apt-get install -y \
+    librdkafka1 \
+    librdkafka++1 \
+    libpq5 \
+    libpqxx-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /app/build/authorization_service /app/authorization_service
+
+ENTRYPOINT ["/app/authorization_service"]
+cmake_minimum_required(VERSION 3.14)
+project(authorization-service)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+
+# Fetch nlohmann/json so we don't rely on host package
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(RDKAFKA REQUIRED rdkafka++)
+pkg_check_modules(PQXX REQUIRED libpqxx)
+
+# Include directories
+include_directories(include)
+include_directories(${RDKAFKA_INCLUDE_DIRS})
+include_directories(${PQXX_INCLUDE_DIRS})
+
+# Source files (we will add them as we create them)
+file(GLOB SOURCES "src/*.cpp" "src/kafka/*.cpp" "src/services/*.cpp" "src/models/*.cpp")
+
+add_executable(authorization_service ${SOURCES})
+
+target_link_libraries(authorization_service
+    PRIVATE
+    ${RDKAFKA_LIBRARIES}
+    ${PQXX_LIBRARIES}
+    nlohmann_json::nlohmann_json
+)

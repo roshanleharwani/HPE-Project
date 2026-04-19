@@ -4,6 +4,8 @@
 #include "../include/PaymentModels.h"
 #include "../include/ThreadPool.h"
 #include "../include/ConnectionPool.h"
+#include "../include/Config.h"
+#include <nlohmann/json.hpp>
 
 #include <iostream>
 #include <string>
@@ -22,17 +24,12 @@ void signal_handler(int sig) {
     }
 }
 
-std::string get_env(const char* key, const char* default_val) {
-    const char* val = std::getenv(key);
-    return val ? std::string(val) : std::string(default_val);
-}
-
 int main() {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
-    std::string kafka_brokers = get_env("KAFKA_BROKERS", "localhost:9092");
-    std::string db_conn = get_env("DB_CONN", "postgresql://postgres:postgres@localhost:5432/postgres");
+    std::string kafka_brokers = Config::getKafkaBrokers();
+    std::string db_conn = Config::getEnv("DB_CONN", "postgresql://postgres:postgres@localhost:5432/postgres");
 
     std::cout << "Starting Authorization Service (High Throughput 10k RPS)..." << std::endl;
     std::cout << "Kafka Brokers: " << kafka_brokers << std::endl;
