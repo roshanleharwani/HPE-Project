@@ -31,14 +31,17 @@ public class PaymentService {
                     .build();
         }
 
-        // 3. Create Payment Intent (Simulated DB generation)
-        String paymentIntentId = UUID.randomUUID().toString();
+        // 3. Use provided Payment Intent ID or generate a new one
+        String paymentIntentId = (request.getPaymentIntentId() != null && !request.getPaymentIntentId().isEmpty())
+                ? request.getPaymentIntentId()
+                : UUID.randomUUID().toString();
 
         // 4. Publish Kafka Event
         PaymentInitiatedEvent event = PaymentInitiatedEvent.builder()
                 .paymentIntentId(paymentIntentId)
                 .transactionId(request.getTransactionId())
                 .userId(request.getUserId())
+                .paymentMethodId(request.getPaymentMethodId())
                 .amount(request.getAmount())
                 .currency(request.getCurrency())
                 .status("INITIATED")

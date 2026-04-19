@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: auth-engine
-        image: tricko98/auth-service:v1
+        image: tricko98/auth-service:v2
         imagePullPolicy: Always
         env:
         - name: KAFKA_BROKERS

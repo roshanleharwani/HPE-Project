@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: persistence-worker
+  labels:
+    app: persistence-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: persistence-worker
+  template:
+    metadata:
+      labels:
+        app: persistence-worker
+    spec:
+      containers:
+      - name: persistence-worker
+        image: tricko98/persistence-worker:v1
+        imagePullPolicy: Always
+        env:
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-postgresql:5432/postgres"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "postgres"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "adminpassword"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

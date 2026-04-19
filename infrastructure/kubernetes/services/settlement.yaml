@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settlement-service
+  labels:
+    app: settlement-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: settlement-service
+  template:
+    metadata:
+      labels:
+        app: settlement-service
+    spec:
+      containers:
+      - name: settlement-service
+        image: tricko98/settlement-service:v1
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BROKERS
+          value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"

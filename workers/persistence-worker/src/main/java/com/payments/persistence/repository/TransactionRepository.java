@@ -1,0 +1,183 @@
+package com.payments.persistence.repository;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Repository for writing payment data to PostgreSQL.
+ * Uses JdbcTemplate for direct SQL execution against the tables
+ * defined in arch.md:
+ *   - transactions (partitioned)
+ *   - ledger_entries
+ *   - payment_events
+ *   - audit_logs
+ *   - accounts
+ *   - payment_intents
+ */
+@Repository
+public class TransactionRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(TransactionRepository.class);
+    private final JdbcTemplate jdbcTemplate;
+
+    public TransactionRepository(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    /**
+     * Update payment_intent status (e.g., CREATED -> SETTLED).
+     */
+    public void updatePaymentIntentStatus(String paymentIntentId, String status) {
+        try {
+            jdbcTemplate.update(
+                    "UPDATE payment_intents SET status = ?::payment_intent_status, updated_at = NOW() WHERE id = ?::uuid",
+                    status, paymentIntentId
+            );
+        } catch (Exception e) {
+            log.warn("Could not update payment_intent {}: {}", paymentIntentId, e.getMessage());
+        }
+    }
+
+    /**
+     * Insert or update a transaction record.
+     * Uses ON CONFLICT on transaction_id to handle idempotency.
+     * Returns the DB-generated UUID of the transaction row.
+     */
+    public String upsertTransaction(String transactionId, String paymentIntentId,
+                                    String paymentMethodId, BigDecimal amount,
+                                    String currency, String status) {
+        try {
+            // Check if transaction already exists
+            List<Map<String, Object>> existing = jdbcTemplate.queryForList(
+                    "SELECT id FROM transactions WHERE transaction_id = ?",
+                    transactionId
+            );
+
+            if (!existing.isEmpty()) {
+                // Update existing
+                String existingId = existing.get(0).get("id").toString();
+                jdbcTemplate.update(
+                        "UPDATE transactions SET status = ?::transaction_status, updated_at = NOW() WHERE id = ?::uuid",
+                        status, existingId
+                );
+                return existingId;
+            }
+
+            // Insert new transaction
+            String id = UUID.randomUUID().toString();
+            String piId = (paymentIntentId == null || paymentIntentId.isEmpty()) ? null : paymentIntentId;
+            String pmId = (paymentMethodId == null || paymentMethodId.isEmpty()) ? null : paymentMethodId;
+
+            jdbcTemplate.update(
+                    "INSERT INTO transactions (id, payment_intent_id, payment_method_id, transaction_id, amount, currency, status, created_at, updated_at) " +
+                    "VALUES (?::uuid, ?::uuid, ?::uuid, ?, ?, ?, ?::transaction_status, NOW(), NOW())",
+                    id, piId, pmId, transactionId, amount, currency, status
+            );
+            return id;
+        } catch (Exception e) {
+            log.error("Failed to upsert transaction {}: {}", transactionId, e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Find an existing account or create one.
+     * Per arch.md, accounts have types: USER_WALLET, MERCHANT_WALLET, PLATFORM_FEES
+     */
+    public String findOrCreateAccount(String userId, String accountType, String currency) {
+        try {
+            List<Map<String, Object>> existing;
+
+            if (userId != null && !userId.isEmpty()) {
+                existing = jdbcTemplate.queryForList(
+                        "SELECT id FROM accounts WHERE user_id = ?::uuid AND account_type = ?",
+                        userId, accountType
+                );
+            } else {
+                existing = jdbcTemplate.queryForList(
+                        "SELECT id FROM accounts WHERE user_id IS NULL AND account_type = ?",
+                        accountType
+                );
+            }
+
+            if (!existing.isEmpty()) {
+                return existing.get(0).get("id").toString();
+            }
+
+            // Create new account
+            String id = UUID.randomUUID().toString();
+            String uid = (userId == null || userId.isEmpty()) ? null : userId;
+            jdbcTemplate.update(
+                    "INSERT INTO accounts (id, user_id, account_type, currency, created_at) VALUES (?::uuid, ?::uuid, ?, ?, NOW())",
+                    id, uid, accountType, currency
+            );
+            return id;
+        } catch (Exception e) {
+            log.error("Failed to find/create account for userId={}, type={}: {}", userId, accountType, e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Insert a ledger entry (double-entry accounting).
+     * Per arch.md: every payment creates DEBIT + CREDIT records.
+     */
+    public void insertLedgerEntry(String transactionId, String accountId,
+                                  String entryType, BigDecimal amount, String currency) {
+        try {
+            String id = UUID.randomUUID().toString();
+            jdbcTemplate.update(
+                    "INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, currency, created_at) " +
+                    "VALUES (?::uuid, ?::uuid, ?::uuid, ?::ledger_entry_type, ?, ?, NOW())",
+                    id, transactionId, accountId, entryType, amount, currency
+            );
+        } catch (Exception e) {
+            log.error("Failed to insert ledger entry: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Insert a payment event (mirrors Kafka events in DB).
+     * Per arch.md: payment_events table stores event history.
+     */
+    public void insertPaymentEvent(String transactionId, String eventType,
+                                   String serviceName, String eventData) {
+        try {
+            String id = UUID.randomUUID().toString();
+            jdbcTemplate.update(
+                    "INSERT INTO payment_events (id, transaction_id, event_type, service_name, event_data, created_at) " +
+                    "VALUES (?::uuid, ?::uuid, ?, ?, ?::jsonb, NOW())",
+                    id, transactionId, eventType, serviceName, eventData
+            );
+        } catch (Exception e) {
+            log.error("Failed to insert payment event: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Insert an audit log entry.
+     * Per arch.md: audit_logs table for compliance and traceability.
+     */
+    public void insertAuditLog(String serviceName, String action, String metadata) {
+        try {
+            String id = UUID.randomUUID().toString();
+            jdbcTemplate.update(
+                    "INSERT INTO audit_logs (id, service_name, action, metadata, created_at) " +
+                    "VALUES (?::uuid, ?, ?, ?::jsonb, NOW())",
+                    id, serviceName, action, metadata
+            );
+        } catch (Exception e) {
+            log.error("Failed to insert audit log: {}", e.getMessage());
+            // Non-critical, don't throw
+        }
+    }
+}

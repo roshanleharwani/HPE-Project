@@ -46,12 +46,30 @@ inline void to_json(nlohmann::json& j, const PaymentInitiatedEvent& p) {
 
 struct PaymentAuthorizedEvent {
     std::string transaction_id;
+    std::string payment_intent_id;
+    std::string payment_method_id;
+    std::string user_id;
+    double amount;
+    std::string currency;
     std::string status; // "AUTHORIZED" or "FAILED"
     std::string reason; // Detailed reason if failed
 };
 
 inline void from_json(const nlohmann::json& j, PaymentAuthorizedEvent& p) {
     p.transaction_id = j.value("transaction_id", j.value("transactionId", ""));
+    p.payment_intent_id = j.value("payment_intent_id", j.value("paymentIntentId", ""));
+    p.payment_method_id = j.value("payment_method_id", j.value("paymentMethodId", ""));
+    p.user_id = j.value("user_id", j.value("userId", ""));
+    if (j.contains("amount")) {
+        if (j.at("amount").is_string()) {
+            p.amount = std::stod(j.at("amount").get<std::string>());
+        } else {
+            p.amount = j.at("amount").get<double>();
+        }
+    } else {
+        p.amount = 0.0;
+    }
+    p.currency = j.value("currency", "");
     p.status = j.value("status", "");
     p.reason = j.value("reason", "");
 }
@@ -59,6 +77,11 @@ inline void from_json(const nlohmann::json& j, PaymentAuthorizedEvent& p) {
 inline void to_json(nlohmann::json& j, const PaymentAuthorizedEvent& p) {
     j = nlohmann::json{
         {"transactionId", p.transaction_id},
+        {"paymentIntentId", p.payment_intent_id},
+        {"paymentMethodId", p.payment_method_id},
+        {"userId", p.user_id},
+        {"amount", p.amount},
+        {"currency", p.currency},
         {"status", p.status},
         {"reason", p.reason}
     };

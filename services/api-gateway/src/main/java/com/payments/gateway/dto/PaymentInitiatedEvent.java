@@ -11,6 +11,7 @@ public class PaymentInitiatedEvent {
     private String paymentIntentId;
     private String transactionId;
     private String userId;
+    private String paymentMethodId;
     private BigDecimal amount;
     private String currency;
     private String status;

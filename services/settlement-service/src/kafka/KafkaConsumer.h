@@ -4,12 +4,10 @@
 #include <string>
 #include <functional>
 #include <memory>
-// Forward declaration of RdKafka classes to avoid requiring librdkafka in every translation unit naturally,
-// but for simplicity in scaffolding we'll include it.
 #if __has_include(<librdkafka/rdkafkacpp.h>)
 #include <librdkafka/rdkafkacpp.h>
 #else
-namespace RdKafka { class Consumer; class Message; class Conf; }
+namespace RdKafka { class KafkaConsumer; class Message; class Conf; }
 #endif
 
 namespace settlement {
@@ -31,7 +29,7 @@ private:
     std::string topic_;
     bool running_;
 
-    std::unique_ptr<RdKafka::Consumer> consumer_;
+    std::unique_ptr<RdKafka::KafkaConsumer> consumer_;
     
     bool init_kafka();
 };
@@ -39,3 +37,4 @@ private:
 } // namespace settlement
 
 #endif // KAFKA_CONSUMER_H
+

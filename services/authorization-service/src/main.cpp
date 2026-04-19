@@ -60,6 +60,11 @@ int main() {
 
                     PaymentAuthorizedEvent res;
                     res.transaction_id = req.transaction_id;
+                    res.payment_intent_id = req.payment_intent_id;
+                    res.payment_method_id = req.payment_method_id;
+                    res.user_id = req.user_id;
+                    res.amount = req.amount;
+                    res.currency = req.currency;
                     
                     std::string out_topic;
                     if (is_authorized) {
