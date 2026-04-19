@@ -1,0 +1,127 @@
+##############################################
+# PostgreSQL Shard 1
+##############################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-shard-init
+data:
+  init.sql: |
+    -- This will be populated from init-shard-schema.sql
+    -- Apply manually after deployment or use kubectl create configmap
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-shard-1
+spec:
+  serviceName: postgres-shard-1
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shard-1
+  template:
+    metadata:
+      labels:
+        app: postgres-shard-1
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16
+        env:
+        - name: POSTGRES_PASSWORD
+          value: "adminpassword"
+        - name: POSTGRES_DB
+          value: "postgres"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: shard1-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+  volumeClaimTemplates:
+  - metadata:
+      name: shard1-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shard-1
+spec:
+  selector:
+    app: postgres-shard-1
+  ports:
+  - port: 5432
+    targetPort: 5432
+  clusterIP: None
+
+---
+##############################################
+# PostgreSQL Shard 2
+##############################################
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-shard-2
+spec:
+  serviceName: postgres-shard-2
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shard-2
+  template:
+    metadata:
+      labels:
+        app: postgres-shard-2
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16
+        env:
+        - name: POSTGRES_PASSWORD
+          value: "adminpassword"
+        - name: POSTGRES_DB
+          value: "postgres"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: shard2-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+  volumeClaimTemplates:
+  - metadata:
+      name: shard2-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shard-2
+spec:
+  selector:
+    app: postgres-shard-2
+  ports:
+  - port: 5432
+    targetPort: 5432
+  clusterIP: None

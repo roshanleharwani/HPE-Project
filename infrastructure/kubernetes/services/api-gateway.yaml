@@ -29,6 +29,13 @@ spec:
         # 3. Ensure it knows the port (default is 6379)
         - name: SPRING_DATA_REDIS_PORT
           value: "6379"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
 ---
 apiVersion: v1
 kind: Service

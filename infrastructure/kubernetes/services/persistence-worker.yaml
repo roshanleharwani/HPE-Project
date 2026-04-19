@@ -5,7 +5,7 @@ metadata:
   labels:
     app: persistence-worker
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: persistence-worker
@@ -16,16 +16,31 @@ spec:
     spec:
       containers:
       - name: persistence-worker
-        image: tricko98/persistence-worker:v1
+        image: tricko98/persistence-worker:v2
         imagePullPolicy: Always
         env:
         - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
           value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"
-        - name: SPRING_DATASOURCE_URL
+        # ── Shard 0 (existing PostgreSQL) ──
+        - name: SHARD0_DATASOURCE_URL
           value: "jdbc:postgresql://postgres-postgresql:5432/postgres"
-        - name: SPRING_DATASOURCE_USERNAME
+        - name: SHARD0_DATASOURCE_USERNAME
           value: "postgres"
-        - name: SPRING_DATASOURCE_PASSWORD
+        - name: SHARD0_DATASOURCE_PASSWORD
+          value: "adminpassword"
+        # ── Shard 1 ──
+        - name: SHARD1_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-shard-1:5432/postgres"
+        - name: SHARD1_DATASOURCE_USERNAME
+          value: "postgres"
+        - name: SHARD1_DATASOURCE_PASSWORD
+          value: "adminpassword"
+        # ── Shard 2 ──
+        - name: SHARD2_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-shard-2:5432/postgres"
+        - name: SHARD2_DATASOURCE_USERNAME
+          value: "postgres"
+        - name: SHARD2_DATASOURCE_PASSWORD
           value: "adminpassword"
         resources:
           requests:

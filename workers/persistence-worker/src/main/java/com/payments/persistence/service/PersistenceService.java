@@ -2,37 +2,42 @@ package com.payments.persistence.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.payments.persistence.config.ShardRouter;
 import com.payments.persistence.repository.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 /**
- * Orchestrates the persistence of a settled payment into PostgreSQL.
- * Per arch.md, this writes to:
- *   - transactions
- *   - ledger_entries
- *   - payment_events
- *   - audit_logs
+ * Orchestrates the persistence of a settled payment into the correct
+ * PostgreSQL shard based on transactionId hash.
+ *
+ * Shard routing: shard_number = hash(transactionId) % 3
  */
 @Service
 public class PersistenceService {
 
     private static final Logger log = LoggerFactory.getLogger(PersistenceService.class);
     private final TransactionRepository repository;
+    private final ShardRouter shardRouter;
+    private final Map<Integer, JdbcTemplate> shardedJdbcTemplates;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public PersistenceService(TransactionRepository repository) {
+    public PersistenceService(TransactionRepository repository,
+                              ShardRouter shardRouter,
+                              Map<Integer, JdbcTemplate> shardedJdbcTemplates) {
         this.repository = repository;
+        this.shardRouter = shardRouter;
+        this.shardedJdbcTemplates = shardedJdbcTemplates;
     }
 
-    @Transactional
     public void persistPayment(String message) {
         try {
-            JsonNode root = objectMapper.readTree(message);
+            JsonNode root = objectMapper.readTree(message);  
 
             // The settlement service wraps the original payload under "original_payload"
             JsonNode payload = root.has("original_payload") ? root.get("original_payload") : root;
@@ -58,49 +63,48 @@ public class PersistenceService {
                 settlementAmount = new BigDecimal(payload.path("settlementAmount").asText("0"));
             }
 
-            log.info("Persisting settled payment: txnId={}, amount={}, currency={}", transactionId, amount, currency);
+            // ── SHARD ROUTING ──
+            int shardNum = shardRouter.determineShard(transactionId);
+            JdbcTemplate jdbc = shardedJdbcTemplates.get(shardNum);
+            log.info("Routing txn {} to shard-{} (hash={})", transactionId, shardNum, transactionId.hashCode());
 
             // 1. Update payment_intent status to SETTLED
             if (!paymentIntentId.isEmpty()) {
-                repository.updatePaymentIntentStatus(paymentIntentId, "SETTLED");
-                log.info("Updated payment_intent {} status to SETTLED", paymentIntentId);
+                repository.updatePaymentIntentStatus(jdbc, paymentIntentId, "SETTLED");
+                log.info("[shard-{}] Updated payment_intent {} → SETTLED", shardNum, paymentIntentId);
             }
 
             // 2. Insert or update transaction record
             String txnDbId = repository.upsertTransaction(
-                    transactionId, paymentIntentId, paymentMethodId,
+                    jdbc, transactionId, paymentIntentId, paymentMethodId,
                     amount, currency, "SETTLED"
             );
-            log.info("Upserted transaction record, DB id: {}", txnDbId);
+            log.info("[shard-{}] Upserted transaction {}, DB id: {}", shardNum, transactionId, txnDbId);
 
             // 3. Create ledger entries (double-entry accounting)
-            // Per arch.md: DEBIT from user wallet, CREDIT to merchant wallet
             if (txnDbId != null) {
-                // Find user and merchant accounts
-                String userAccountId = repository.findOrCreateAccount(userId, "USER_WALLET", currency);
-                // Use a platform merchant account
-                String merchantAccountId = repository.findOrCreateAccount(null, "MERCHANT_WALLET", currency);
-                String feeAccountId = repository.findOrCreateAccount(null, "PLATFORM_FEES", currency);
+                String userAccountId = repository.findOrCreateAccount(jdbc, userId, "USER_WALLET", currency);
+                String merchantAccountId = repository.findOrCreateAccount(jdbc, null, "MERCHANT_WALLET", currency);
+                String feeAccountId = repository.findOrCreateAccount(jdbc, null, "PLATFORM_FEES", currency);
 
                 // Debit from user
-                repository.insertLedgerEntry(txnDbId, userAccountId, "DEBIT", amount, currency);
-                // Credit to merchant (settlement amount = amount - fees)
-                repository.insertLedgerEntry(txnDbId, merchantAccountId, "CREDIT", settlementAmount, currency);
+                repository.insertLedgerEntry(jdbc, txnDbId, userAccountId, "DEBIT", amount, currency);
+                // Credit to merchant
+                repository.insertLedgerEntry(jdbc, txnDbId, merchantAccountId, "CREDIT", settlementAmount, currency);
                 // Credit fees to platform
                 if (feeAmount.compareTo(BigDecimal.ZERO) > 0) {
-                    repository.insertLedgerEntry(txnDbId, feeAccountId, "CREDIT", feeAmount, currency);
+                    repository.insertLedgerEntry(jdbc, txnDbId, feeAccountId, "CREDIT", feeAmount, currency);
                 }
-                log.info("Created ledger entries for transaction {}", transactionId);
+                log.info("[shard-{}] Created ledger entries for {}", shardNum, transactionId);
             }
 
             // 4. Insert payment event
-            repository.insertPaymentEvent(txnDbId, "PAYMENT_SETTLED", "persistence-worker",
-                    message);
-            log.info("Created payment event for transaction {}", transactionId);
+            repository.insertPaymentEvent(jdbc, txnDbId, "PAYMENT_SETTLED", "persistence-worker", message);
 
             // 5. Insert audit log
-            repository.insertAuditLog("persistence-worker", "payment_persisted", message);
-            log.info("Created audit log for transaction {}", transactionId);
+            repository.insertAuditLog(jdbc, "persistence-worker", "payment_persisted", message);
+
+            log.info("[shard-{}] ✓ Payment {} fully persisted", shardNum, transactionId);
 
         } catch (Exception e) {
             log.error("Error persisting payment: {}", e.getMessage(), e);
