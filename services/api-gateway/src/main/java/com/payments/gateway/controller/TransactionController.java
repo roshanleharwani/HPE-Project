@@ -1,6 +1,7 @@
 package com.payments.gateway.controller;
 
 import com.payments.gateway.dto.TransactionDTO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -8,41 +9,110 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.sql.*;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/transactions")
+@RequestMapping("/api/v1/transactions")
+@RequiredArgsConstructor
 public class TransactionController {
 
+    // All 3 shard JDBC URLs (matching persistence-worker config)
+    private static final String[][] SHARDS = {
+        {"jdbc:postgresql://postgres-postgresql:5432/postgres", "postgres", "adminpassword"},
+        {"jdbc:postgresql://postgres-shard-1:5432/postgres", "postgres", "adminpassword"},
+        {"jdbc:postgresql://postgres-shard-2:5432/postgres", "postgres", "adminpassword"}
+    };
+
+    private static final String SELECT_ALL = 
+        "SELECT id, payment_intent_id, transaction_id, amount, currency, CAST(status AS text), created_at FROM transactions ORDER BY created_at DESC";
+
+    private static final String SELECT_BY_ID = 
+        "SELECT id, payment_intent_id, transaction_id, amount, currency, CAST(status AS text), created_at FROM transactions WHERE transaction_id = ? LIMIT 1";
+
     @GetMapping
-    public ResponseEntity<List<TransactionDTO>> getTransactions() {
-        // Returning mock implementation
-        return ResponseEntity.ok(List.of(
-            TransactionDTO.builder()
-                .transactionId(UUID.randomUUID().toString())
-                .paymentIntentId(UUID.randomUUID().toString())
-                .amount(new BigDecimal("500.00"))
-                .currency("INR")
-                .status("SETTLED")
-                .createdAt(LocalDateTime.now().minusDays(1))
-                .build()
-        ));
+    public ResponseEntity<?> getTransactions() {
+        try {
+            List<TransactionDTO> allTransactions = new ArrayList<>();
+
+            for (String[] shard : SHARDS) {
+                try {
+                    allTransactions.addAll(queryTransactions(shard, SELECT_ALL));
+                } catch (Exception e) {
+                    // Shard might be down — skip and continue
+                    System.err.println("Failed to query shard " + shard[0] + ": " + e.getMessage());
+                }
+            }
+
+            // Sort all results by createdAt descending
+            allTransactions.sort((a, b) -> {
+                if (b.getCreatedAt() == null) return -1;
+                if (a.getCreatedAt() == null) return 1;
+                return b.getCreatedAt().compareTo(a.getCreatedAt());
+            });
+
+            return ResponseEntity.ok(allTransactions);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                    Map.of("error", e.getClass().getSimpleName(),
+                           "message", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TransactionDTO> getTransaction(@PathVariable String id) {
-        // Returning mock implementation
-        return ResponseEntity.ok(
-            TransactionDTO.builder()
-                .transactionId(id)
-                .paymentIntentId(UUID.randomUUID().toString())
-                .amount(new BigDecimal("500.00"))
-                .currency("INR")
-                .status("SETTLED")
-                .createdAt(LocalDateTime.now().minusDays(1))
-                .build()
-        );
+    public ResponseEntity<?> getTransaction(@PathVariable String id) {
+        try {
+            for (String[] shard : SHARDS) {
+                try (Connection conn = DriverManager.getConnection(shard[0], shard[1], shard[2]);
+                     PreparedStatement ps = conn.prepareStatement(SELECT_BY_ID)) {
+                    ps.setString(1, id);
+                    ResultSet rs = ps.executeQuery();
+                    if (rs.next()) {
+                        return ResponseEntity.ok(mapRow(rs));
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed to query shard " + shard[0] + ": " + e.getMessage());
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                    Map.of("error", e.getClass().getSimpleName(),
+                           "message", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
+    private List<TransactionDTO> queryTransactions(String[] shard, String sql) throws SQLException {
+        List<TransactionDTO> results = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(shard[0], shard[1], shard[2]);
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                results.add(mapRow(rs));
+            }
+        }
+        return results;
+    }
+
+    private TransactionDTO mapRow(ResultSet rs) throws SQLException {
+        LocalDateTime createdAt = null;
+        Timestamp ts = rs.getTimestamp("created_at");
+        if (ts != null) {
+            createdAt = ts.toLocalDateTime();
+        }
+
+        String txnId = rs.getString("transaction_id");
+        String id = rs.getString("id");
+
+        return TransactionDTO.builder()
+                .transactionId(txnId != null ? txnId : id)
+                .paymentIntentId(rs.getString("payment_intent_id"))
+                .amount(rs.getBigDecimal("amount"))
+                .currency(rs.getString("currency"))
+                .status(rs.getString(6))
+                .createdAt(createdAt)
+                .build();
     }
 }

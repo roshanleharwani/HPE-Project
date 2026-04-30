@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: tricko98/api-gateway:v2
+        image: tricko98/api-gateway:v6
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -29,6 +29,15 @@ spec:
         # 3. Ensure it knows the port (default is 6379)
         - name: SPRING_DATA_REDIS_PORT
           value: "6379"
+        # PostgreSQL connection
+        - name: DB_HOST
+          value: "postgres-postgresql"
+        - name: DB_NAME
+          value: "postgres"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "adminpassword"
         resources:
           requests:
             memory: "256Mi"

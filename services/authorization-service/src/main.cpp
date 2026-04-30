@@ -37,7 +37,7 @@ int main() {
     try {
         // Initialize ThreadPool & DB Connection Pool
         size_t THREADS = 50;
-        size_t DB_CONNS = 50;
+        size_t DB_CONNS = 10;
         
         ThreadPool tpool(THREADS);
         auto db_pool = std::make_shared<ConnectionPool>(db_conn, DB_CONNS);

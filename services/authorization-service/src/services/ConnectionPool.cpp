@@ -12,6 +12,17 @@ std::shared_ptr<pqxx::connection> ConnectionPool::get_connection() {
     
     auto conn = pool_.back();
     pool_.pop_back();
+    lock.unlock();
+    
+    // Check if the connection is alive, reconnect if dead
+    try {
+        if (!conn || !conn->is_open()) {
+            conn = std::make_shared<pqxx::connection>(conn_str_);
+        }
+    } catch (...) {
+        // If we fail to reconnect, return it anyway and let the engine handle the error
+    }
+    
     return conn;
 }
 

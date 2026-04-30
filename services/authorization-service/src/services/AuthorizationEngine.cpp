@@ -101,11 +101,11 @@ bool AuthorizationEngine::authorize(const PaymentInitiatedEvent& event, std::str
         return true; 
     } catch (const pqxx::sql_error& e) {
         std::cerr << "SQL error: " << e.what() << "\nQuery was: " << e.query() << std::endl;
-        out_reason = "Database error during validation";
+        out_reason = std::string("Database error during validation: ") + e.what();
         return false;
     } catch (const std::exception& e) {
         std::cerr << "DB Error during authorization: " << e.what() << std::endl;
-        out_reason = "Internal verification error";
+        out_reason = std::string("Internal verification error: ") + e.what();
         return false;
     }
 }

@@ -4,6 +4,7 @@ import com.payments.gateway.dto.PaymentInitiatedEvent;
 import com.payments.gateway.dto.PaymentRequest;
 import com.payments.gateway.dto.PaymentResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ public class PaymentService {
 
     private final IdempotencyService idempotencyService;
     private final PaymentEventPublisher eventPublisher;
+    private final JdbcTemplate jdbcTemplate;
 
     public PaymentResponse processPayment(PaymentRequest request) {
         // 1. Validate request (basic here)
@@ -32,9 +34,22 @@ public class PaymentService {
         }
 
         // 3. Use provided Payment Intent ID or generate a new one
-        String paymentIntentId = (request.getPaymentIntentId() != null && !request.getPaymentIntentId().isEmpty())
-                ? request.getPaymentIntentId()
-                : UUID.randomUUID().toString();
+        String paymentIntentId = request.getPaymentIntentId();
+        if (paymentIntentId == null || paymentIntentId.isEmpty()) {
+            paymentIntentId = UUID.randomUUID().toString();
+            
+            // Insert the generated intent into the database so AuthorizationEngine validation passes
+            try {
+                jdbcTemplate.update(
+                    "INSERT INTO payment_intents (id, user_id, amount, currency, status, description, created_at, updated_at) " +
+                    "VALUES (?::uuid, ?::uuid, ?, ?, 'CREATED'::payment_intent_status, ?, NOW(), NOW()) ON CONFLICT (id) DO NOTHING",
+                    paymentIntentId, request.getUserId(), request.getAmount(), request.getCurrency(), request.getDescription()
+                );
+            } catch (Exception e) {
+                // Log and continue, or fail the request. We will log it.
+                System.err.println("Failed to insert payment intent: " + e.getMessage());
+            }
+        }
 
         // 4. Publish Kafka Event
         PaymentInitiatedEvent event = PaymentInitiatedEvent.builder()
