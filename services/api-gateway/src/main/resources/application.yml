@@ -1,5 +1,12 @@
 server:
   port: 8080
+  tomcat:
+    max-connections: 10000
+    accept-count: 200 # Load shedding: reject connection if backlog exceeds 200
+    threads:
+      max: 800
+      min-spare: 100
+  connection-timeout: 2000ms # Fast fail instead of hanging
 
 spring:
   application:
@@ -9,6 +16,9 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:adminpassword}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 100
+      connection-timeout: 2000
   jpa:
     hibernate:
       ddl-auto: none
@@ -25,8 +35,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 3
+      batch-size: 32768
+      buffer-memory: 33554432
       properties:
         spring.json.add.type.headers: false
+        linger.ms: 10
+        request.timeout.ms: 2000
+        delivery.timeout.ms: 3000
 
 payment:
   kafka:
