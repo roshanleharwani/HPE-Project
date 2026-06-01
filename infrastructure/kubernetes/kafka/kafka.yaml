@@ -89,7 +89,6 @@ spec:
           value: "PLAINTEXT://:9092,CONTROLLER://:9093"
         - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
           value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
-        # FIX: Must use FQDN so non-Kafka pods can resolve broker addresses from metadata
         - name: KAFKA_CFG_ADVERTISED_LISTENERS
           value: "PLAINTEXT://$(POD_NAME).my-kafka-controller-headless.default.svc.cluster.local:9092"
         - name: KAFKA_CFG_CONTROLLER_QUORUM_VOTERS

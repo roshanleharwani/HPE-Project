@@ -16,7 +16,6 @@ spec:
   groups:
     - name: payment-infrastructure.rules
       rules:
-        # 1. The Redis OOM Alert
         - alert: RedisMemoryApproachingOOM
           expr: sum(container_memory_working_set_bytes{namespace="default", pod=~"redis-master.*"}) > 1800000000
           for: 1m
@@ -27,7 +26,6 @@ spec:
             summary: "Redis Master Memory Dangerously High"
             description: "Redis memory has exceeded 1.8GB. Out of Memory (OOM) crash imminent."
 
-        # 2. The HPA Saturation Alert
         - alert: HPAMaxCapacityReached
           expr: kube_deployment_status_replicas{namespace="default"} > 55
           for: 2m
@@ -38,7 +36,6 @@ spec:
             summary: "HPA at Maximum Capacity"
             description: "Deployment {{ $labels.deployment }} has scaled to {{ $value }} pods. Traffic may soon be dropped if volume increases."
 
-        # 3. The CrashLoop Death Spiral Alert
         - alert: MicroserviceCrashLoop
           expr: sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace="default"}[5m])) > 2
           for: 0m

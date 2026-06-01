@@ -17,17 +17,17 @@ spec:
         image: edoburu/pgbouncer:latest
         env:
         - name: DB_HOST
-          value: "postgres-postgresql" # Points to your actual DB
+          value: "postgres-postgresql" 
         - name: DB_USER
           value: "postgres"
         - name: DB_PASSWORD
           value: "adminpassword"
         - name: POOL_MODE
-          value: "transaction"         # Crucial for high-throughput microservices
+          value: "transaction"         
         - name: MAX_CLIENT_CONN
-          value: "5000"                # Accepts up to 5k connections from your pods
+          value: "5000"                
         - name: DEFAULT_POOL_SIZE
-          value: "200"                  # Only opens 40 actual connections to PostgreSQL
+          value: "200"                  
         - name: AUTH_TYPE
           value: "scram-sha-256"
         ports:

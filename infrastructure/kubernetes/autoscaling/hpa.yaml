@@ -1,7 +1,5 @@
-##############################################
-# API Gateway HPA - Primary entry point
-# Aggressively scaled to handle 2500 concurrent threads
-##############################################
+# API Gateway 
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -45,9 +43,9 @@ spec:
         periodSeconds: 60
 
 ---
-##############################################
+
 # Authorization Service HPA
-##############################################
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -85,9 +83,9 @@ spec:
         periodSeconds: 60
 
 ---
-##############################################
+
 # Clearing Service HPA
-##############################################
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -125,9 +123,9 @@ spec:
         periodSeconds: 60
 
 ---
-##############################################
+
 # Settlement Service HPA
-##############################################
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -165,9 +163,9 @@ spec:
         periodSeconds: 60
 
 ---
-##############################################
+
 # Persistence Worker HPA
-##############################################
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
