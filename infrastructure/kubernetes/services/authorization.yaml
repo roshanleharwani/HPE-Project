@@ -5,7 +5,7 @@ metadata:
   labels:
     app: authorization-service
 spec:
-  replicas: 1
+  replicas: 2 # Matched to your HPA minimum
   selector:
     matchLabels:
       app: authorization-service
@@ -14,19 +14,30 @@ spec:
       labels:
         app: authorization-service
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: authorization-service
       containers:
       - name: auth-engine
-        image: tricko98/auth-service:v2
-        imagePullPolicy: Always
+        image: tricko98/auth-service:v5
+        imagePullPolicy: IfNotPresent
         env:
+        - name: THREADS
+          value: "100"
+        - name: DB_CONNS
+          value: "100"
         - name: KAFKA_BROKERS
-          value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"
+          value: "my-kafka:9092"
         - name: DB_CONN
-          value: "postgresql://postgres:adminpassword@postgres-postgresql:5432/postgres"
+          value: "postgresql://postgres:adminpassword@pgbouncer-service:5432/postgres"
         resources:
           requests:
             memory: "128Mi"
-            cpu: "100m"
+            cpu: "50m"
           limits:
-            memory: "256Mi"
-            cpu: "250m"
+            memory: "1Gi"
+            cpu: "2000m"

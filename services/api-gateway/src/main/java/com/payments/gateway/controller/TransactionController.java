@@ -1,6 +1,10 @@
 package com.payments.gateway.controller;
 
 import com.payments.gateway.dto.TransactionDTO;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,18 +12,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
 @RequiredArgsConstructor
 public class TransactionController {
 
-    // All 3 shard JDBC URLs (matching persistence-worker config)
     private static final String[][] SHARDS = {
         {"jdbc:postgresql://postgres-postgresql:5432/postgres", "postgres", "adminpassword"},
         {"jdbc:postgresql://postgres-shard-1:5432/postgres", "postgres", "adminpassword"},
@@ -27,26 +28,49 @@ public class TransactionController {
     };
 
     private static final String SELECT_ALL = 
-        "SELECT id, payment_intent_id, transaction_id, amount, currency, CAST(status AS text), created_at FROM transactions ORDER BY created_at DESC";
+        "SELECT id, payment_intent_id, transaction_id, amount, currency, CAST(status AS text), created_at FROM transactions ORDER BY created_at DESC LIMIT 50";
 
     private static final String SELECT_BY_ID = 
         "SELECT id, payment_intent_id, transaction_id, amount, currency, CAST(status AS text), created_at FROM transactions WHERE transaction_id = ? LIMIT 1";
+
+    private final List<HikariDataSource> dataSources = new ArrayList<>();
+
+    @PostConstruct
+    public void init() {
+        for (String[] shard : SHARDS) {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(shard[0]);
+            config.setUsername(shard[1]);
+            config.setPassword(shard[2]);
+            config.setMaximumPoolSize(20);
+            config.setMinimumIdle(5);
+            config.setConnectionTimeout(3000);
+            dataSources.add(new HikariDataSource(config));
+        }
+    }
+
+    @PreDestroy
+    public void cleanup() {
+        for (HikariDataSource ds : dataSources) {
+            if (ds != null) {
+                ds.close();
+            }
+        }
+    }
 
     @GetMapping
     public ResponseEntity<?> getTransactions() {
         try {
             List<TransactionDTO> allTransactions = new ArrayList<>();
 
-            for (String[] shard : SHARDS) {
+            for (HikariDataSource ds : dataSources) {
                 try {
-                    allTransactions.addAll(queryTransactions(shard, SELECT_ALL));
+                    allTransactions.addAll(queryTransactions(ds, SELECT_ALL));
                 } catch (Exception e) {
-                    // Shard might be down — skip and continue
-                    System.err.println("Failed to query shard " + shard[0] + ": " + e.getMessage());
+                    System.err.println("Failed to query shard " + ds.getJdbcUrl() + ": " + e.getMessage());
                 }
             }
 
-            // Sort all results by createdAt descending
             allTransactions.sort((a, b) -> {
                 if (b.getCreatedAt() == null) return -1;
                 if (a.getCreatedAt() == null) return 1;
@@ -64,8 +88,8 @@ public class TransactionController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getTransaction(@PathVariable String id) {
         try {
-            for (String[] shard : SHARDS) {
-                try (Connection conn = DriverManager.getConnection(shard[0], shard[1], shard[2]);
+            for (HikariDataSource ds : dataSources) {
+                try (Connection conn = ds.getConnection();
                      PreparedStatement ps = conn.prepareStatement(SELECT_BY_ID)) {
                     ps.setString(1, id);
                     ResultSet rs = ps.executeQuery();
@@ -73,7 +97,7 @@ public class TransactionController {
                         return ResponseEntity.ok(mapRow(rs));
                     }
                 } catch (Exception e) {
-                    System.err.println("Failed to query shard " + shard[0] + ": " + e.getMessage());
+                    System.err.println("Failed to query shard " + ds.getJdbcUrl() + ": " + e.getMessage());
                 }
             }
             return ResponseEntity.notFound().build();
@@ -84,9 +108,9 @@ public class TransactionController {
         }
     }
 
-    private List<TransactionDTO> queryTransactions(String[] shard, String sql) throws SQLException {
+    private List<TransactionDTO> queryTransactions(HikariDataSource ds, String sql) throws SQLException {
         List<TransactionDTO> results = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(shard[0], shard[1], shard[2]);
+        try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {

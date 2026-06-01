@@ -16,6 +16,9 @@ public:
     template<class F, class... Args>
     auto enqueue(F&& f, Args&&... args) -> std::future<typename std::invoke_result_t<F, Args...>>;
 
+    template<class F>
+    void enqueue_detach(F&& f);
+
 private:
     std::vector<std::thread> workers;
     std::queue<std::function<void()>> tasks;
@@ -63,6 +66,17 @@ auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::inv
     }
     condition.notify_one();
     return res;
+}
+
+template<class F>
+inline void ThreadPool::enqueue_detach(F&& f) {
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        if(stop)
+            throw std::runtime_error("enqueue on stopped ThreadPool");
+        tasks.push(std::function<void()>(std::forward<F>(f)));
+    }
+    condition.notify_one();
 }
 
 inline ThreadPool::~ThreadPool() {

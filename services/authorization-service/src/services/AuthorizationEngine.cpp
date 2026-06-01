@@ -1,5 +1,7 @@
 #include "../../include/AuthorizationEngine.h"
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 #include <pqxx/pqxx>
 
 class ConnectionGuard {
@@ -58,14 +60,15 @@ bool AuthorizationEngine::authorize(const PaymentInitiatedEvent& event, std::str
             return false;
         }
 
-        // FIX 3: amount is numeric(12,2) in DB. Casting to double loses precision
-        // (e.g. 100.10 stored as numeric != 100.10 as IEEE754 double).
-        // Compare as strings: DB value cast to text, event amount rounded to 2dp.
-        std::string db_amount_str    = row["intent_amount"].as<std::string>("");
-        std::string event_amount_str = std::to_string(event.amount);
-        auto dot = event_amount_str.find('.');
-        if (dot != std::string::npos && event_amount_str.size() > dot + 3)
-            event_amount_str = event_amount_str.substr(0, dot + 3);
+        // FIX 3: amount is numeric(15,2) in DB. std::to_string(double) uses
+        // %g-style formatting which can produce "13644.959999" for a value that
+        // should be "13644.96". The old naive truncation (cutting after 2dp) could
+        // yield the wrong digit if the last digit wasn't rounded up.
+        // Fix: use std::fixed + std::setprecision(2) which correctly rounds.
+        std::string db_amount_str = row["intent_amount"].as<std::string>("");
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(2) << event.amount;
+        std::string event_amount_str = oss.str();
         if (db_amount_str != event_amount_str) {
             out_reason = "Payment amount mismatch with intent";
             return false;

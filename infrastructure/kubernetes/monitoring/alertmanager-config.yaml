@@ -1,0 +1,40 @@
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+      # Gmail SMTP settings
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'roshanleharwani@gmail.com'
+      smtp_auth_username: 'roshanleharwani@gmail.com'
+      smtp_auth_password: 'klna rmjk bowt crhu'
+      smtp_require_tls: true
+
+    route:
+      group_by: ['alertname', 'job']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'email-notifications'
+
+    receivers:
+    - name: 'email-notifications'
+      email_configs:
+      - to: 'roshan.23bce7308@vitapstudent.ac.in'
+        send_resolved: true
+        headers:
+          Subject: '[{{ .Status | toUpper }}] 🚨 {{ .CommonLabels.alertname }}'
+        html: >-
+          <h3>Alert: {{ .CommonLabels.alertname }}</h3>
+          <p><strong>Status:</strong> {{ .Status | toUpper }}</p>
+          {{ range .Alerts }}
+            <hr>
+            <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+            <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+            <p><strong>Severity:</strong> <span style="color:red;">{{ .Labels.severity }}</span></p>
+            <p><strong>Details:</strong></p>
+            <ul>
+            {{ range .Labels.SortedPairs }}
+              <li><b>{{ .Name }}:</b> {{ .Value }}</li>
+            {{ end }}
+            </ul>
+          {{ end }}

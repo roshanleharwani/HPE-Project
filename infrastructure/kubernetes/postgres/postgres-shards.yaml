@@ -7,8 +7,167 @@ metadata:
   name: postgres-shard-init
 data:
   init.sql: |
-    -- This will be populated from init-shard-schema.sql
-    -- Apply manually after deployment or use kubectl create configmap
+    -- Schema for PostgreSQL shards
+    -- Applied to each shard via ConfigMap init
+    
+    -- Enums
+    DO $ BEGIN
+        CREATE TYPE payment_intent_status AS ENUM ('CREATED', 'AUTHORIZED', 'CLEARED', 'SETTLED', 'FAILED', 'CANCELLED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $;
+    
+    DO $ BEGIN
+        CREATE TYPE transaction_status AS ENUM ('INITIATED', 'AUTHORIZED', 'CLEARED', 'SETTLED', 'FAILED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $;
+    
+    DO $ BEGIN
+        CREATE TYPE ledger_entry_type AS ENUM ('DEBIT', 'CREDIT');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $;
+    
+    -- Tables
+    CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        full_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    CREATE TABLE IF NOT EXISTS payment_methods (
+        id UUID PRIMARY KEY,
+        user_id UUID REFERENCES users(id),
+        method_type VARCHAR(50) NOT NULL,
+        provider VARCHAR(50),
+        token VARCHAR(255),
+        last_four VARCHAR(4),
+        expiry_month INT,
+        expiry_year INT,
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    CREATE TABLE IF NOT EXISTS payment_intents (
+        id UUID PRIMARY KEY,
+        user_id UUID REFERENCES users(id),
+        amount DECIMAL(15,2) NOT NULL,
+        currency VARCHAR(3) DEFAULT 'INR',
+        status payment_intent_status DEFAULT 'CREATED',
+        description TEXT,
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    CREATE TABLE IF NOT EXISTS accounts (
+        id UUID PRIMARY KEY,
+        user_id UUID REFERENCES users(id),
+        account_type VARCHAR(50) NOT NULL,
+        currency VARCHAR(3) DEFAULT 'INR',
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    CREATE TABLE IF NOT EXISTS transactions (
+        id UUID NOT NULL,
+        payment_intent_id UUID,
+        payment_method_id UUID,
+        transaction_id VARCHAR(255),
+        amount DECIMAL(15,2),
+        currency VARCHAR(3),
+        status transaction_status,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (id, created_at)
+    ) PARTITION BY RANGE (created_at);
+    
+    -- Create partitions for 2026
+    CREATE TABLE IF NOT EXISTS transactions_2026_01 PARTITION OF transactions FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_02 PARTITION OF transactions FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_03 PARTITION OF transactions FOR VALUES FROM ('2026-03-01') TO ('2026-04-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_04 PARTITION OF transactions FOR VALUES FROM ('2026-04-01') TO ('2026-05-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_05 PARTITION OF transactions FOR VALUES FROM ('2026-05-01') TO ('2026-06-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_06 PARTITION OF transactions FOR VALUES FROM ('2026-06-01') TO ('2026-07-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_07 PARTITION OF transactions FOR VALUES FROM ('2026-07-01') TO ('2026-08-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_08 PARTITION OF transactions FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_09 PARTITION OF transactions FOR VALUES FROM ('2026-09-01') TO ('2026-10-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_10 PARTITION OF transactions FOR VALUES FROM ('2026-10-01') TO ('2026-11-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_11 PARTITION OF transactions FOR VALUES FROM ('2026-11-01') TO ('2026-12-01');
+    CREATE TABLE IF NOT EXISTS transactions_2026_12 PARTITION OF transactions FOR VALUES FROM ('2026-12-01') TO ('2027-01-01');
+    -- Create partitions for 2027
+    CREATE TABLE IF NOT EXISTS transactions_2027_01 PARTITION OF transactions FOR VALUES FROM ('2027-01-01') TO ('2027-02-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_02 PARTITION OF transactions FOR VALUES FROM ('2027-02-01') TO ('2027-03-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_03 PARTITION OF transactions FOR VALUES FROM ('2027-03-01') TO ('2027-04-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_04 PARTITION OF transactions FOR VALUES FROM ('2027-04-01') TO ('2027-05-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_05 PARTITION OF transactions FOR VALUES FROM ('2027-05-01') TO ('2027-06-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_06 PARTITION OF transactions FOR VALUES FROM ('2027-06-01') TO ('2027-07-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_07 PARTITION OF transactions FOR VALUES FROM ('2027-07-01') TO ('2027-08-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_08 PARTITION OF transactions FOR VALUES FROM ('2027-08-01') TO ('2027-09-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_09 PARTITION OF transactions FOR VALUES FROM ('2027-09-01') TO ('2027-10-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_10 PARTITION OF transactions FOR VALUES FROM ('2027-10-01') TO ('2027-11-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_11 PARTITION OF transactions FOR VALUES FROM ('2027-11-01') TO ('2027-12-01');
+    CREATE TABLE IF NOT EXISTS transactions_2027_12 PARTITION OF transactions FOR VALUES FROM ('2027-12-01') TO ('2028-01-01');
+    
+    CREATE TABLE IF NOT EXISTS ledger_entries (
+        id UUID PRIMARY KEY,
+        transaction_id UUID,
+        account_id UUID,
+        entry_type ledger_entry_type,
+        amount DECIMAL(15,2),
+        currency VARCHAR(3),
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    CREATE TABLE IF NOT EXISTS payment_events (
+        id UUID PRIMARY KEY,
+        transaction_id UUID,
+        event_type VARCHAR(100),
+        service_name VARCHAR(100),
+        event_data JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id UUID PRIMARY KEY,
+        service_name VARCHAR(100),
+        action VARCHAR(100),
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- Seed reference data
+    INSERT INTO users (id, email, full_name, created_at, updated_at)
+    VALUES ('a1b2c3d4-e5f6-7890-1234-56789abcdef0', 'roshan@gmail.com', 'Roshan', NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING;
+    
+    INSERT INTO payment_methods (id, user_id, method_type, provider, token, last_four, expiry_month, expiry_year, created_at, updated_at)
+    VALUES ('c3d4e5f6-a7b8-9012-3456-789abcdef012', 'a1b2c3d4-e5f6-7890-1234-56789abcdef0', 'CARD', 'VISA', 'tok_visa_test', '4242', 12, 2027, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING;
+    
+    -- Refund status enum
+    DO $ BEGIN
+        CREATE TYPE refund_status AS ENUM ('REQUESTED', 'APPROVED', 'COMPLETED', 'FAILED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $;
+    
+    -- Refunds table
+    CREATE TABLE IF NOT EXISTS refunds (
+        id UUID PRIMARY KEY,
+        transaction_id UUID,
+        amount DECIMAL(15,2),
+        currency VARCHAR(3),
+        reason TEXT,
+        status refund_status DEFAULT 'REQUESTED',
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_refunds_transaction ON refunds(transaction_id);
+    CREATE INDEX IF NOT EXISTS idx_refunds_status ON refunds(status);
+    
+    
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -25,9 +184,29 @@ spec:
       labels:
         app: postgres-shard-1
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - kafka
+                  - postgresql
+              topologyKey: kubernetes.io/hostname
+      volumes:
+      - name: init-script
+        configMap:
+          name: postgres-shard-init
       containers:
       - name: postgres
         image: postgres:16
+        args:
+          - "-c"
+          - "max_connections=1000"
         env:
         - name: POSTGRES_PASSWORD
           value: "adminpassword"
@@ -38,6 +217,8 @@ spec:
         volumeMounts:
         - name: shard1-data
           mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d/
         resources:
           requests:
             memory: "128Mi"
@@ -85,9 +266,29 @@ spec:
       labels:
         app: postgres-shard-2
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - kafka
+                  - postgresql
+              topologyKey: kubernetes.io/hostname
+      volumes:
+      - name: init-script
+        configMap:
+          name: postgres-shard-init
       containers:
       - name: postgres
         image: postgres:16
+        args:
+          - "-c"
+          - "max_connections=1000"
         env:
         - name: POSTGRES_PASSWORD
           value: "adminpassword"
@@ -98,6 +299,8 @@ spec:
         volumeMounts:
         - name: shard2-data
           mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d/
         resources:
           requests:
             memory: "128Mi"
@@ -125,3 +328,4 @@ spec:
   - port: 5432
     targetPort: 5432
   clusterIP: None
+

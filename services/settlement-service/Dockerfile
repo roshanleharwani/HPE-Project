@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
     librdkafka-dev \
+    nlohmann-json3-dev \
     libssl-dev \
     pkg-config
 

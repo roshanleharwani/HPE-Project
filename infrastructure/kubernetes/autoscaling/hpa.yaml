@@ -1,6 +1,6 @@
 ##############################################
 # API Gateway HPA - Primary entry point
-# Scales aggressively since this handles all HTTP traffic
+# Aggressively scaled to handle 2500 concurrent threads
 ##############################################
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -11,28 +11,32 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: api-gateway
-  minReplicas: 10
-  maxReplicas: 80
+  minReplicas: 20
+  maxReplicas: 100
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
-        type: Utilization
-        averageUtilization: 60
+        type: AverageValue
+        averageValue: "500m"
   - type: Resource
     resource:
       name: memory
       target:
-        type: Utilization
-        averageUtilization: 75
+        type: AverageValue
+        averageValue: "350Mi"
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
       policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
       - type: Pods
-        value: 4
-        periodSeconds: 30
+        value: 10
+        periodSeconds: 15
     scaleDown:
       stabilizationWindowSeconds: 120
       policies:
@@ -53,27 +57,31 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: authorization-service
-  minReplicas: 2
-  maxReplicas: 40
+  minReplicas: 15
+  maxReplicas: 60
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
-        type: Utilization
-        averageUtilization: 65
+        type: AverageValue
+        averageValue: "1100m"
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
       policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
       - type: Pods
-        value: 3
-        periodSeconds: 30
+        value: 8
+        periodSeconds: 15
     scaleDown:
       stabilizationWindowSeconds: 120
       policies:
       - type: Pods
-        value: 1
+        value: 2
         periodSeconds: 60
 
 ---
@@ -89,22 +97,26 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: clearing-service
-  minReplicas: 2
-  maxReplicas: 40
+  minReplicas: 10
+  maxReplicas: 60
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
-        type: Utilization
-        averageUtilization: 65
+        type: AverageValue
+        averageValue: "150m"
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
       policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
       - type: Pods
-        value: 3
-        periodSeconds: 30
+        value: 5
+        periodSeconds: 15
     scaleDown:
       stabilizationWindowSeconds: 120
       policies:
@@ -125,22 +137,26 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: settlement-service
-  minReplicas: 2
-  maxReplicas: 40
+  minReplicas: 10
+  maxReplicas: 60
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
-        type: Utilization
-        averageUtilization: 65
+        type: AverageValue
+        averageValue: "150m"
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
       policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
       - type: Pods
-        value: 3
-        periodSeconds: 30
+        value: 5
+        periodSeconds: 15
     scaleDown:
       stabilizationWindowSeconds: 120
       policies:
@@ -161,22 +177,26 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: persistence-worker
-  minReplicas: 2
-  maxReplicas: 32
+  minReplicas: 10
+  maxReplicas: 50
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
-        type: Utilization
-        averageUtilization: 70
+        type: AverageValue
+        averageValue: "300m"
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
       policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
       - type: Pods
-        value: 2
-        periodSeconds: 30
+        value: 5
+        periodSeconds: 15
     scaleDown:
       stabilizationWindowSeconds: 120
       policies:

@@ -37,10 +37,21 @@ public class PersistenceService {
 
     public void persistPayment(String message) {
         try {
-            JsonNode root = objectMapper.readTree(message);  
+            JsonNode root = objectMapper.readTree(message);
 
-            // The settlement service wraps the original payload under "original_payload"
-            JsonNode payload = root.has("original_payload") ? root.get("original_payload") : root;
+            // The settlement service wraps the original payload under "original_payload".
+            // It should be a JSON object, but defensively handle the case where it arrives
+            // as a JSON string (double-serialised) — e.g., during rolling upgrades or from
+            // old settlement pods that used string-concatenation instead of nlohmann::json.
+            JsonNode payloadNode = root.has("original_payload") ? root.get("original_payload") : root;
+            JsonNode payload;
+            if (payloadNode.isTextual()) {
+                // Double-encoded: the settlement service stringified the inner JSON.
+                // Parse it again to get the real object.
+                payload = objectMapper.readTree(payloadNode.asText());
+            } else {
+                payload = payloadNode;
+            }
 
             String transactionId = payload.path("transactionId").asText("");
             String paymentIntentId = payload.path("paymentIntentId").asText("");

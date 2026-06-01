@@ -1,0 +1,33 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: persistence-worker
+
+  # Disable default auto-config since we use custom ShardedDataSourceConfig
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: persistence-worker-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+  datasource:
+    shard0:
+      url: ${SHARD0_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
+      username: ${SHARD0_DATASOURCE_USERNAME:postgres}
+      password: ${SHARD0_DATASOURCE_PASSWORD:postgres}
+    shard1:
+      url: ${SHARD1_DATASOURCE_URL:jdbc:postgresql://localhost:5433/postgres}
+      username: ${SHARD1_DATASOURCE_USERNAME:postgres}
+      password: ${SHARD1_DATASOURCE_PASSWORD:postgres}
+    shard2:
+      url: ${SHARD2_DATASOURCE_URL:jdbc:postgresql://localhost:5434/postgres}
+      username: ${SHARD2_DATASOURCE_USERNAME:postgres}
+      password: ${SHARD2_DATASOURCE_PASSWORD:postgres}

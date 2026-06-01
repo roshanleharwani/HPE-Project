@@ -36,8 +36,8 @@ int main() {
     
     try {
         // Initialize ThreadPool & DB Connection Pool
-        size_t THREADS = 50;
-        size_t DB_CONNS = 10;
+        size_t THREADS = std::stoul(Config::getEnv("THREADS", "100"));
+        size_t DB_CONNS = std::stoul(Config::getEnv("DB_CONNS", "100"));
         
         ThreadPool tpool(THREADS);
         auto db_pool = std::make_shared<ConnectionPool>(db_conn, DB_CONNS);
@@ -50,9 +50,10 @@ int main() {
 
         auto message_handler = [&tpool, engine, producer](const std::string& payload) {
             // Immediately Enqueue to free up the Consumer thread
-            tpool.enqueue([payload, engine, producer]() {
+            std::string payload_copy = payload;
+            tpool.enqueue_detach([payload_copy, engine, producer]() {
                 try {
-                    auto j = nlohmann::json::parse(payload);
+                    auto j = nlohmann::json::parse(payload_copy);
                     PaymentInitiatedEvent req = j;
 
                     std::string reason;

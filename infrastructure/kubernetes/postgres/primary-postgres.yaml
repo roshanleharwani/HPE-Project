@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-postgresql
+spec:
+  serviceName: postgres-postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgresql
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - kafka
+                  - postgresql
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: postgres
+        image: postgres:16
+        args:
+          - "-c"
+          - "max_connections=1000"
+          - "-c"
+          - "synchronous_commit=off"
+          - "-c"
+          - "commit_delay=10000"
+        env:
+        - name: POSTGRES_PASSWORD
+          value: "adminpassword"
+        - name: POSTGRES_DB
+          value: "postgres"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 8Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-postgresql
+spec:
+  selector:
+    app.kubernetes.io/name: postgresql
+  ports:
+  - port: 5432
+    targetPort: 5432

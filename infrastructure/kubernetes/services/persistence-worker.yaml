@@ -14,16 +14,23 @@ spec:
       labels:
         app: persistence-worker
     spec:
+      nodeSelector: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: persistence-worker
       containers:
       - name: persistence-worker
         image: tricko98/persistence-worker:v2
         imagePullPolicy: Always
         env:
         - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-          value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"
-        # ── Shard 0 (existing PostgreSQL) ──
+          value: "my-kafka:9092"
         - name: SHARD0_DATASOURCE_URL
-          value: "jdbc:postgresql://postgres-postgresql:5432/postgres"
+          value: "jdbc:postgresql://pgbouncer-service:5432/postgres"
         - name: SHARD0_DATASOURCE_USERNAME
           value: "postgres"
         - name: SHARD0_DATASOURCE_PASSWORD
@@ -45,7 +52,7 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "50m"
           limits:
             memory: "512Mi"
             cpu: "500m"

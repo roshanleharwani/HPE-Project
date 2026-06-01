@@ -6,6 +6,7 @@ import com.payments.gateway.dto.PaymentResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,6 +19,7 @@ public class PaymentService {
     private final PaymentEventPublisher eventPublisher;
     private final JdbcTemplate jdbcTemplate;
 
+    @Transactional
     public PaymentResponse processPayment(PaymentRequest request) {
         // 1. Validate request (basic here)
         if (request.getTransactionId() == null || request.getAmount() == null) {

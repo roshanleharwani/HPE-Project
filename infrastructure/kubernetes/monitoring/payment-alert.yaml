@@ -1,0 +1,50 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: payment-gateway-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/instance: prom-stack
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/version: 85.3.2
+    app: kube-prometheus-stack
+    chart: kube-prometheus-stack-85.3.2
+    heritage: Helm
+    release: prom-stack
+spec:
+  groups:
+    - name: payment-infrastructure.rules
+      rules:
+        # 1. The Redis OOM Alert
+        - alert: RedisMemoryApproachingOOM
+          expr: sum(container_memory_working_set_bytes{namespace="default", pod=~"redis-master.*"}) > 1800000000
+          for: 1m
+          labels:
+            severity: critical
+            team: payment-infra
+          annotations:
+            summary: "Redis Master Memory Dangerously High"
+            description: "Redis memory has exceeded 1.8GB. Out of Memory (OOM) crash imminent."
+
+        # 2. The HPA Saturation Alert
+        - alert: HPAMaxCapacityReached
+          expr: kube_deployment_status_replicas{namespace="default"} > 55
+          for: 2m
+          labels:
+            severity: warning
+            team: payment-infra
+          annotations:
+            summary: "HPA at Maximum Capacity"
+            description: "Deployment {{ $labels.deployment }} has scaled to {{ $value }} pods. Traffic may soon be dropped if volume increases."
+
+        # 3. The CrashLoop Death Spiral Alert
+        - alert: MicroserviceCrashLoop
+          expr: sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace="default"}[5m])) > 2
+          for: 0m
+          labels:
+            severity: critical
+            team: payment-infra
+          annotations:
+            summary: "Pod CrashLoop Detected"
+            description: "Pod {{ $labels.pod }} has restarted multiple times in the last 5 minutes. Check application logs immediately."

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <nlohmann/json.hpp>
 
 namespace settlement {
 
@@ -55,39 +56,82 @@ void SettlementService::stop() {
 }
 
 bool SettlementService::final_settlement_logic(const std::string& key, const std::string& payload) {
-    // Here we would implement the logic for:
-    // 1. Parsing the JSON payload
-    // 2. Ensuring idempotency
-    // 3. Updating the sharded PostgreSQL database (e.g. inserting into ledger_entries)
-    // 4. Updating the transaction state
+    // 1. Parse the incoming payment_cleared JSON payload
+    nlohmann::json root;
+    try {
+        root = nlohmann::json::parse(payload);
+    } catch (const nlohmann::json::parse_error& e) {
+        std::cerr << "[Settlement] Failed to parse payment_cleared payload: " << e.what() << std::endl;
+        return false;
+    }
 
-    std::cout << "Processing settlement logic for Key: " << key << std::endl;
-    // simulated db work
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
-    return true; // Assume success for scaffolding
+    // 2. Validate required fields are present
+    // Accept both camelCase (from auth service serializer) and snake_case defensively
+    std::string txn_id = root.value("transactionId", root.value("transaction_id", ""));
+    if (txn_id.empty()) {
+        std::cerr << "[Settlement] Rejected event with empty transactionId for key: " << key << std::endl;
+        return false;
+    }
+
+    std::string status = root.value("status", "");
+    double amount = 0.0;
+    if (root.contains("amount")) {
+        if (root["amount"].is_string()) {
+            amount = std::stod(root["amount"].get<std::string>());
+        } else {
+            amount = root["amount"].get<double>();
+        }
+    }
+
+    std::cout << "[Settlement] Processing txn=" << txn_id
+              << " status=" << status
+              << " amount=" << amount << std::endl;
+
+    // 3. Only settle payments that were CLEARED
+    if (status != "CLEARED") {
+        std::cerr << "[Settlement] Unexpected status '" << status << "' for txn " << txn_id
+                  << " — expected CLEARED. Skipping." << std::endl;
+        return false;
+    }
+
+    return true;
 }
 
 void SettlementService::handle_payment_cleared(const std::string& key, const std::string& payload) {
-    std::cout << "Received payment_cleared event: " << key << std::endl;
+    std::cout << "[Settlement] Received payment_cleared event, key=" << key << std::endl;
 
     bool db_success = final_settlement_logic(key, payload);
 
     if (db_success) {
-        // Construct payment_settled payload
-        // In a real implementation we would build a JSON payload here
-        std::string settled_payload = "{\"status\": \"settled\", \"original_payload\": " + (payload.empty() ? "{}" : payload) + "}";
-        
+        // Build payment_settled event using nlohmann::json so that
+        // original_payload is a proper JSON object — NOT a raw escaped string.
+        // This is critical: the persistence worker does
+        //   root.get("original_payload")  →  expects a JSON object
+        // If we use string concatenation it becomes a JSON string value and
+        // payload.path("transactionId") returns missing → empty string.
+        nlohmann::json inner;
+        try {
+            inner = nlohmann::json::parse(payload);
+        } catch (...) {
+            inner = nlohmann::json::object();
+        }
+
+        nlohmann::json settled_json;
+        settled_json["status"] = "settled";
+        settled_json["original_payload"] = inner;  // object, not a string!
+
+        std::string settled_payload = settled_json.dump();
+
         bool produced = producer_->produce(settings_.topic_payment_settled, key, settled_payload);
         if (produced) {
-            std::cout << "Successfully produced payment_settled event for Key: " << key << std::endl;
+            std::cout << "[Settlement] Successfully produced payment_settled for txn key=" << key << std::endl;
         } else {
-            std::cerr << "Failed to produce payment_settled event." << std::endl;
-            // Handle failure, potentially publish to DLQ
+            std::cerr << "[Settlement] Failed to produce payment_settled event." << std::endl;
         }
     } else {
-        // Publish to DLQ if the final settlement logic fails critically
+        // Publish to DLQ if the settlement logic fails
         producer_->produce(settings_.topic_dead_letter, key, payload);
+        std::cerr << "[Settlement] Sent to DLQ: " << key << std::endl;
     }
 }
 

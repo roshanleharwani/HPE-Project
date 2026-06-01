@@ -14,17 +14,26 @@ spec:
       labels:
         app: settlement-service
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: settlement-service
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: settlement-service
         image: tricko98/settlement-service:v1
         imagePullPolicy: Always
         env:
         - name: KAFKA_BROKERS
-          value: "my-kafka-controller-0.my-kafka-controller-headless.default.svc.cluster.local:9092"
+          value: "my-kafka:9092"
         resources:
           requests:
             memory: "128Mi"
-            cpu: "100m"
+            cpu: "50m"
           limits:
-            memory: "256Mi"
+            memory: "1Gi"
             cpu: "250m"

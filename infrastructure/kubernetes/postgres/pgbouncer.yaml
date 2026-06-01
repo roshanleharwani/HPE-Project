@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      containers:
+      - name: pgbouncer
+        image: edoburu/pgbouncer:latest
+        env:
+        - name: DB_HOST
+          value: "postgres-postgresql" # Points to your actual DB
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "adminpassword"
+        - name: POOL_MODE
+          value: "transaction"         # Crucial for high-throughput microservices
+        - name: MAX_CLIENT_CONN
+          value: "5000"                # Accepts up to 5k connections from your pods
+        - name: DEFAULT_POOL_SIZE
+          value: "200"                  # Only opens 40 actual connections to PostgreSQL
+        - name: AUTH_TYPE
+          value: "scram-sha-256"
+        ports:
+        - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-service
+spec:
+  selector:
+    app: pgbouncer
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
