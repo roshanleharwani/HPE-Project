@@ -16,10 +16,9 @@ void signal_handler(int signal) {
 int main() {
     std::cout << "Starting Settlement Service..." << std::endl;
 
-    // Load configuration (typically from environment variables or a config file)
+    // Load configuration 
     settlement::KafkaSettings settings;
     
-    // In a real environment, you'd override defaults like this:
     if (const char* env_brokers = std::getenv("KAFKA_BROKERS")) {
         settings.brokers = env_brokers;
     }

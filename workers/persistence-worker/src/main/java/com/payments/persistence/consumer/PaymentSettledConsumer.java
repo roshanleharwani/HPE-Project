@@ -6,11 +6,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Kafka consumer that listens for payment_settled events.
- * Per arch.md, this is the final stage of the payment pipeline:
- *   payment_initiated -> payment_authorized -> payment_cleared -> payment_settled -> DB
- */
 @Component
 public class PaymentSettledConsumer {
 

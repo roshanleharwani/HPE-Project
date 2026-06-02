@@ -103,12 +103,6 @@ void SettlementService::handle_payment_cleared(const std::string& key, const std
     bool db_success = final_settlement_logic(key, payload);
 
     if (db_success) {
-        // Build payment_settled event using nlohmann::json so that
-        // original_payload is a proper JSON object — NOT a raw escaped string.
-        // This is critical: the persistence worker does
-        //   root.get("original_payload")  →  expects a JSON object
-        // If we use string concatenation it becomes a JSON string value and
-        // payload.path("transactionId") returns missing → empty string.
         nlohmann::json inner;
         try {
             inner = nlohmann::json::parse(payload);
@@ -118,7 +112,7 @@ void SettlementService::handle_payment_cleared(const std::string& key, const std
 
         nlohmann::json settled_json;
         settled_json["status"] = "settled";
-        settled_json["original_payload"] = inner;  // object, not a string!
+        settled_json["original_payload"] = inner;  
 
         std::string settled_payload = settled_json.dump();
 
