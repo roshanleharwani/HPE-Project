@@ -12,7 +12,7 @@ data:
         threads:
           max: 800
           min-spare: 100
-      connection-timeout: 2000ms # Fast fail instead of hanging
+        connection-timeout: 2000ms # Fast fail instead of hanging
     
     spring:
       threads:
@@ -46,6 +46,11 @@ data:
           # Fixed for Kubernetes internal DNS
           host: ${REDIS_HOST:redis-master} 
           port: 6379
+          lettuce:
+            pool:
+              max-active: 32
+              max-idle: 16
+              min-idle: 8
       kafka:
         # Fixed for Kubernetes internal DNS
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:my-kafka:9092}
@@ -53,15 +58,22 @@ data:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
           retries: 3
-          batch-size: 32768
-          buffer-memory: 33554432
+          batch-size: 65536
+          buffer-memory: 67108864
           properties:
             spring.json.add.type.headers: false
-            linger.ms: 2
-            acks: "1"                  # Added for throughput
-            compression.type: lz4      # Added to save network bandwidth
+            linger.ms: 10
+            acks: "1"
+            compression.type: lz4
             request.timeout.ms: 2000
             delivery.timeout.ms: 3000
+            max.block.ms: 2000
+    
+    logging:
+      level:
+        root: WARN
+        com.payments.gateway: INFO
+        org.apache.kafka: WARN
     
     payment:
       kafka:

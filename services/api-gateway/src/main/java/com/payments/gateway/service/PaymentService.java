@@ -6,7 +6,8 @@ import com.payments.gateway.dto.PaymentResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,11 +16,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentService {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
     private final IdempotencyService idempotencyService;
     private final PaymentEventPublisher eventPublisher;
     private final JdbcTemplate jdbcTemplate;
 
-    @Transactional
     public PaymentResponse processPayment(PaymentRequest request) {
         // 1. Validate request (basic here)
         if (request.getTransactionId() == null || request.getAmount() == null) {
@@ -48,8 +50,7 @@ public class PaymentService {
                     paymentIntentId, request.getUserId(), request.getAmount(), request.getCurrency(), request.getDescription()
                 );
             } catch (Exception e) {
-                // Log and continue, or fail the request. We will log it.
-                System.err.println("Failed to insert payment intent: " + e.getMessage());
+                log.error("Failed to insert payment intent: {}", e.getMessage());
             }
         }
 

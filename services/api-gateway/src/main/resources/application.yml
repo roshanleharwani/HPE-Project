@@ -6,7 +6,7 @@ server:
     threads:
       max: 800
       min-spare: 100
-  connection-timeout: 2000ms # Fast fail instead of hanging
+  connection-timeout: 20000ms # Fast fail instead of hanging
 
 spring:
   threads:
@@ -24,7 +24,7 @@ spring:
     password: ${DB_PASSWORD:adminpassword}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 100  # Increased for massive concurrency
+      maximum-pool-size: 20  # Reduced to avoid exhausting PgBouncer pool
       connection-timeout: 20000
       max-lifetime: 600000
       keepalive-time: 300000

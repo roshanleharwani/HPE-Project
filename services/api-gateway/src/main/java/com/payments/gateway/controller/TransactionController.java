@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -20,6 +22,8 @@ import java.util.*;
 @RequestMapping("/api/v1/transactions")
 @RequiredArgsConstructor
 public class TransactionController {
+
+    private static final Logger log = LoggerFactory.getLogger(TransactionController.class);
 
     private static final String[][] SHARDS = {
         {"jdbc:postgresql://postgres-postgresql:5432/postgres", "postgres", "adminpassword"},
@@ -42,9 +46,10 @@ public class TransactionController {
             config.setJdbcUrl(shard[0]);
             config.setUsername(shard[1]);
             config.setPassword(shard[2]);
-            config.setMaximumPoolSize(20);
-            config.setMinimumIdle(5);
-            config.setConnectionTimeout(3000);
+            config.setMaximumPoolSize(10);
+            config.setMinimumIdle(2);
+            config.setConnectionTimeout(5000);
+            config.setInitializationFailTimeout(-1); // Don't fail startup if shard is temporarily down
             dataSources.add(new HikariDataSource(config));
         }
     }
@@ -67,7 +72,7 @@ public class TransactionController {
                 try {
                     allTransactions.addAll(queryTransactions(ds, SELECT_ALL));
                 } catch (Exception e) {
-                    System.err.println("Failed to query shard " + ds.getJdbcUrl() + ": " + e.getMessage());
+                    log.warn("Failed to query shard {}: {}", ds.getJdbcUrl(), e.getMessage());
                 }
             }
 
@@ -97,7 +102,7 @@ public class TransactionController {
                         return ResponseEntity.ok(mapRow(rs));
                     }
                 } catch (Exception e) {
-                    System.err.println("Failed to query shard " + ds.getJdbcUrl() + ": " + e.getMessage());
+                    log.warn("Failed to query shard {}: {}", ds.getJdbcUrl(), e.getMessage());
                 }
             }
             return ResponseEntity.notFound().build();

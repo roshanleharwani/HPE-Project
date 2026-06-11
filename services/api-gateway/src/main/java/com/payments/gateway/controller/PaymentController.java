@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -19,13 +21,22 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public class PaymentController {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
+
     private final PaymentService paymentService;
-    // Limit to 2000 concurrent processing requests for graceful degradation
-    private final Semaphore rateLimiter = new Semaphore(2000);
+    // Limit to 5000 concurrent processing requests for graceful degradation
+    private final Semaphore rateLimiter = new Semaphore(5000);
 
     @PostMapping
     public ResponseEntity<PaymentResponse> processPayment(@RequestBody PaymentRequest request) {
-        if (!rateLimiter.tryAcquire()) {
+        boolean acquired = false;
+        try {
+            acquired = rateLimiter.tryAcquire(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        if (!acquired) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(PaymentResponse.builder()
                     .status("FAILED")
                     .message("Too Many Requests. System under heavy load.")
@@ -43,8 +54,7 @@ public class PaymentController {
                     .message(e.getMessage())
                     .build());
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("API GATEWAY ERROR: " + e.getClass().getName() + " - " + e.getMessage());
+            log.error("API GATEWAY ERROR: {} - {}", e.getClass().getName(), e.getMessage());
             return ResponseEntity.internalServerError().body(PaymentResponse.builder()
                     .status("ERROR")
                     .message("Internal server error: " + e.getMessage())

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Payment Gateway Load Test" enabled="true">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Payment Gateway 10k RPS Test" enabled="true">
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
         <collectionProp name="Arguments.arguments">
           <elementProp name="TARGET_HOST" elementType="Argument">
             <stringProp name="Argument.name">TARGET_HOST</stringProp>
-            <stringProp name="Argument.value">localhost</stringProp>
+            <stringProp name="Argument.value">10.0.1.132</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="TARGET_PORT" elementType="Argument">
@@ -36,17 +36,27 @@
           <boolProp name="LoopController.continue_forever">false</boolProp>
           <intProp name="LoopController.loops">-1</intProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">1500</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">30</stringProp>
+        <stringProp name="ThreadGroup.num_threads">3000</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">60</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
-        <stringProp name="ThreadGroup.duration">120</stringProp>
+        <stringProp name="ThreadGroup.duration">180</stringProp>
         <stringProp name="ThreadGroup.delay">0</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
       </ThreadGroup>
       <hashTree>
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="Limit to 10000 req/sec" enabled="true">
+          <intProp name="calcMode">1</intProp>
+          <doubleProp>
+            <name>throughput</name>
+            <!-- 10000 requests/sec * 60 seconds = 600000 requests/min -->
+            <value>600000.0</value>
+            <savedValue>0.0</savedValue>
+          </doubleProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
         <CounterConfig guiclass="CounterConfigGui" testclass="CounterConfig" testname="Request Counter" enabled="true">
           <stringProp name="CounterConfig.start">1</stringProp>
-          <stringProp name="CounterConfig.end">100000</stringProp>
+          <stringProp name="CounterConfig.end">5000000</stringProp>
           <stringProp name="CounterConfig.incr">1</stringProp>
           <stringProp name="CounterConfig.name">requestNum</stringProp>
           <stringProp name="CounterConfig.format"></stringProp>
@@ -62,6 +72,10 @@
 def num = vars.get("requestNum") as int
 def txnId = "txn-load-" + num + "-" + System.nanoTime()
 vars.put("transactionId", txnId)
+def numStr = String.format("%08d", num)
+def numStr12 = String.format("%012d", num)
+def intentId = numStr + "-0000-4000-8000-" + numStr12
+vars.put("paymentIntentId", intentId)
           </stringProp>
           <stringProp name="scriptLanguage">groovy</stringProp>
         </JSR223PreProcessor>
@@ -72,7 +86,7 @@ vars.put("transactionId", txnId)
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{"transactionId":"${transactionId}","userId":"${USER_ID}","paymentMethodId":"${PAYMENT_METHOD_ID}","amount":500.00,"currency":"INR"}</stringProp>
+                <stringProp name="Argument.value">{&quot;transactionId&quot;:&quot;${transactionId}&quot;,&quot;userId&quot;:&quot;${USER_ID}&quot;,&quot;paymentIntentId&quot;:&quot;${paymentIntentId}&quot;,&quot;paymentMethodId&quot;:&quot;${PAYMENT_METHOD_ID}&quot;,&quot;amount&quot;:500.00,&quot;currency&quot;:&quot;INR&quot;}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
