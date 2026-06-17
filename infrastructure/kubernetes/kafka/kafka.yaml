@@ -74,6 +74,13 @@ spec:
           name: client
         - containerPort: 9093
           name: interbroker
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
         env:
         - name: POD_NAME
           valueFrom:

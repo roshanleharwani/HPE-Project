@@ -27,11 +27,18 @@ spec:
         - name: MAX_CLIENT_CONN
           value: "15000"                
         - name: DEFAULT_POOL_SIZE
-          value: "200"                  
+          value: "800"                  
         - name: AUTH_TYPE
           value: "scram-sha-256"
         ports:
         - containerPort: 5432
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
 ---
 apiVersion: v1
 kind: Service
