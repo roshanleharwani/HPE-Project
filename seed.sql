@@ -8,6 +8,11 @@ INSERT INTO payment_methods (id, user_id, method_type, provider, token, last_fou
 VALUES ('c3d4e5f6-a7b8-9012-3456-789abcdef012', 'a1b2c3d4-e5f6-7890-1234-56789abcdef0', 'CARD', 'VISA', 'tok_visa_load_test', '4242', 12, 2027, NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
+-- Ensure the test user has a funded wallet
+INSERT INTO accounts (id, user_id, account_type, balance, currency, created_at)
+VALUES ('b1b2c3d4-e5f6-7890-1234-56789abcdef0', 'a1b2c3d4-e5f6-7890-1234-56789abcdef0', 'USER_WALLET', 50000.00, 'INR', NOW())
+ON CONFLICT (id) DO NOTHING;
+
 -- Ensure transaction partition exists for current month (MAY 2026)
 CREATE TABLE IF NOT EXISTS transactions_2026_05
 PARTITION OF transactions

@@ -134,4 +134,13 @@ public class TransactionRepository {
             log.error("Failed to insert audit log: {}", e.getMessage());
         }
     }
+
+    public void updateAccountBalance(JdbcTemplate jdbc, String accountId, BigDecimal amount) {
+        try {
+            jdbc.update("UPDATE accounts SET balance = balance + ? WHERE id = ?::uuid", amount, accountId);
+        } catch (Exception e) {
+            log.error("Failed to update account balance for {}: {}", accountId, e.getMessage());
+            throw e;
+        }
+    }
 }

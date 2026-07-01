@@ -84,6 +84,12 @@ int main() {
 
                 } catch (const std::exception& e) {
                     std::cerr << "Processing error within worker thread: " << e.what() << std::endl;
+                    try {
+                        producer->publish("payment_initiated.DLT", payload_copy);
+                        std::cerr << "Message routed to payment_initiated.DLT" << std::endl;
+                    } catch (const std::exception& prod_err) {
+                        std::cerr << "Failed to publish to DLT: " << prod_err.what() << std::endl;
+                    }
                 }
             });
         };

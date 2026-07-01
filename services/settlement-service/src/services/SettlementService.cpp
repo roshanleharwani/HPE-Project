@@ -100,7 +100,16 @@ bool SettlementService::final_settlement_logic(const std::string& key, const std
 void SettlementService::handle_payment_cleared(const std::string& key, const std::string& payload) {
     std::cout << "[Settlement] Received payment_cleared event, key=" << key << std::endl;
 
-    bool db_success = final_settlement_logic(key, payload);
+    bool db_success = false;
+    int max_retries = 3;
+    for (int i = 0; i < max_retries; ++i) {
+        db_success = final_settlement_logic(key, payload);
+        if (db_success) {
+            break;
+        }
+        std::cerr << "[Settlement] Processing failed. Retrying (" << (i + 1) << "/" << max_retries << ")..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
 
     if (db_success) {
         nlohmann::json inner;

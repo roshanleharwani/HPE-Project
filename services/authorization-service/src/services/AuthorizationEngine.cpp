@@ -31,15 +31,11 @@ bool AuthorizationEngine::authorize(const PaymentInitiatedEvent& event, std::str
             "  pm.method_type, "
             "  pm.expiry_year, "
             "  pm.expiry_month, "
-            // FIX 1: created_at is indexed (idx_transactions_created); updated_at is NOT
-            "  (SELECT COALESCE(SUM(amount), 0) FROM transactions "
-            "   WHERE created_at >= CURRENT_DATE "
-            "   AND payment_intent_id IN (SELECT id FROM payment_intents WHERE user_id = $1::uuid) "
-            // FIX 2: transactions.status is a custom enum type, must cast the literal
-            "   AND status = 'AUTHORIZED'::transaction_status) AS total_today "
+            "  a.balance "
             "FROM users u "
             "LEFT JOIN payment_intents pi ON pi.id = $2::uuid AND pi.user_id = u.id "
             "LEFT JOIN payment_methods pm ON pm.id = $3::uuid AND pm.user_id = u.id "
+            "LEFT JOIN accounts a ON a.user_id = u.id AND a.account_type = 'USER_WALLET' "
             "WHERE u.id = $1::uuid";
 
         pqxx::result r = tx.exec_params(query,
@@ -94,10 +90,14 @@ bool AuthorizationEngine::authorize(const PaymentInitiatedEvent& event, std::str
             }
         }
 
-        // 5. Fraud/Limit Check
-        double total_today = row["total_today"].as<double>(0.0);
-        if (total_today + event.amount > 100000.0) {
-            out_reason = "Fraud simulation: Daily transaction limit exceeded for this user";
+        // 5. Insufficient Funds Check
+        if (row["balance"].is_null()) {
+            out_reason = "User account not found";
+            return false;
+        }
+        double current_balance = row["balance"].as<double>(0.0);
+        if (current_balance < event.amount) {
+            out_reason = "Insufficient funds in account balance";
             return false;
         }
 

@@ -92,12 +92,24 @@ public class PersistenceService {
             );
             log.info("[shard-{}] Upserted transaction {}, DB id: {}", shardNum, transactionId, txnDbId);
 
-            // 3. Create ledger entries (double-entry accounting)
+            // 3. Create ledger entries and update balances on Shard 0 (Primary)
             if (txnDbId != null) {
-                String userAccountId = repository.findOrCreateAccount(jdbc, userId, "USER_WALLET", currency);
-                String merchantAccountId = repository.findOrCreateAccount(jdbc, null, "MERCHANT_WALLET", currency);
-                String feeAccountId = repository.findOrCreateAccount(jdbc, null, "PLATFORM_FEES", currency);
+                // Fetch the connection for Shard 0 where accounts live
+                JdbcTemplate primaryJdbc = shardedJdbcTemplates.get(0);
 
+                String userAccountId = repository.findOrCreateAccount(primaryJdbc, userId, "USER_WALLET", currency);
+                String merchantAccountId = repository.findOrCreateAccount(primaryJdbc, null, "MERCHANT_WALLET", currency);
+                String feeAccountId = repository.findOrCreateAccount(primaryJdbc, null, "PLATFORM_FEES", currency);
+
+                // Update Balances on Shard 0
+                repository.updateAccountBalance(primaryJdbc, userAccountId, amount.negate());
+                repository.updateAccountBalance(primaryJdbc, merchantAccountId, settlementAmount);
+                if (feeAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    repository.updateAccountBalance(primaryJdbc, feeAccountId, feeAmount);
+                }
+                log.info("[shard-0] Updated account balances for transaction {}", transactionId);
+
+                // Insert ledger entries on the local transaction shard (shardNum)
                 // Debit from user
                 repository.insertLedgerEntry(jdbc, txnDbId, userAccountId, "DEBIT", amount, currency);
                 // Credit to merchant

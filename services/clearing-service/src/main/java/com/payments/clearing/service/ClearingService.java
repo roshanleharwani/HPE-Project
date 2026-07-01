@@ -51,6 +51,7 @@ public class ClearingService {
 
         } catch (Exception e) {
             log.error("Failed to process clearing event: {}", e.getMessage());
+            throw new RuntimeException("Clearing event processing failed", e);
         }
     }
 }
