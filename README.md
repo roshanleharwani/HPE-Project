@@ -1,4 +1,4 @@
-# HPE Payment Gateway 🚀
+# Payment Gateway and Payment Processor 🚀
 
 [![CI/CD](https://github.com/tricko98/hpe-payment-gateway/actions/workflows/deploy.yml/badge.svg)](https://github.com/tricko98/hpe-payment-gateway/actions)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-Self--Hosted-blue.svg)](https://kubernetes.io/)
@@ -24,7 +24,7 @@
 
 ## 🌟 Overview
 
-The **HPE Payment Gateway** is designed to replace traditional cloud-managed services with a robust, self-hosted Kubernetes ecosystem. It demonstrates how to build a highly available, event-driven financial transaction system from the ground up, utilizing best practices in distributed systems, idempotency, sharding, and double-entry accounting.
+The **Payment Gateway and Payment Processor** is designed to replace traditional cloud-managed services with a robust, self-hosted Kubernetes ecosystem. It demonstrates how to build a highly available, event-driven financial transaction system from the ground up, utilizing best practices in distributed systems, idempotency, sharding, and double-entry accounting.
 
 **Key Design Philosophy:**
 Replace managed services (like AWS ALB, MSK, RDS, ElastiCache) with self-hosted robust alternatives running on Kubernetes (Nginx, Kafka, PostgreSQL Sharded, Redis).
@@ -32,6 +32,12 @@ Replace managed services (like AWS ALB, MSK, RDS, ElastiCache) with self-hosted 
 ---
 
 ## 🏗 Architecture & Flow
+
+### High-Level Design (HLD)
+![High-Level Design](HLD.png)
+
+### Low-Level Design (LLD)
+![Low-Level Design](LLD.jpeg)
 
 The system processes payments asynchronously using an event-driven architecture powered by **Apache Kafka**.
 
