@@ -163,6 +163,7 @@ The system is rigorously load-tested using **JMeter** and **k6** to handle massi
 
 | Member | Focus Area | Technologies |
 | :--- | :--- | :--- |
+| **Roshan Laharwani** | Architecture, Deployment, Frontend & Monitoring | Kubernetes, Prometheus, Grafana, React |
 | **Avipsa Mukherjee** | API Gateway | Java, Spring Boot, Redis, Kafka |
 | **Kumaresh Ramachandran**| Authorization Service | C++, librdkafka, libpqxx |
 | **M. Laasya** | Clearing Service | Java, Spring Boot |
