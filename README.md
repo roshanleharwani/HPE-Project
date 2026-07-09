@@ -1,4 +1,4 @@
-# Payment Gateway and Payment Processor 🚀
+# Payment Gateway and Payment Processor 
 
 [![CI/CD](https://github.com/tricko98/hpe-payment-gateway/actions/workflows/deploy.yml/badge.svg)](https://github.com/tricko98/hpe-payment-gateway/actions)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-Self--Hosted-blue.svg)](https://kubernetes.io/)
@@ -9,7 +9,7 @@
 
 ---
 
-## 📖 Table of Contents
+##  Table of Contents
 
 - [Overview](#-overview)
 - [Architecture & Flow](#-architecture--flow)
@@ -31,7 +31,7 @@ Replace managed services (like AWS ALB, MSK, RDS, ElastiCache) with self-hosted 
 
 ---
 
-## 🏗 Architecture & Flow
+##  Architecture & Flow
 
 ### High-Level Design (HLD)
 ![High-Level Design](HLD.png)
@@ -74,7 +74,7 @@ POST /api/v1/payments
 
 ---
 
-## 🛠 Infrastructure Stack
+##  Infrastructure Stack
 
 We embrace a fully self-managed stack on Kubernetes:
 
@@ -104,7 +104,7 @@ The architecture is composed of specialized microservices developed in Java and 
 
 ---
 
-## 🗄 Database Architecture
+##  Database Architecture
 
 The persistence layer relies on a **sharded PostgreSQL cluster** (3 shards: `shard-0`, `shard-1`, `shard-2`) for horizontal scalability.
 
@@ -114,7 +114,7 @@ The persistence layer relies on a **sharded PostgreSQL cluster** (3 shards: `sha
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 - Kubernetes cluster (or Minikube/kind for local development)
@@ -148,7 +148,7 @@ The persistence layer relies on a **sharded PostgreSQL cluster** (3 shards: `sha
 
 ---
 
-## 📊 Performance & Benchmarks
+##  Performance & Benchmarks
 
 The system is rigorously load-tested using **JMeter** and **k6** to handle massive traffic spikes (e.g., Black Friday sales).
 
