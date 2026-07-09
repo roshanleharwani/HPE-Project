@@ -100,7 +100,6 @@ The architecture is composed of specialized microservices developed in Java and 
 3. **Clearing Service (`Java/Spring Boot`)**: Clears authorized payments.
 4. **Settlement Service (`C++`)**: Settles payments, preparing them for final database persistence.
 5. **Persistence Worker (`Java/Spring Boot`)**: Responsible for writing financial records (transactions, ledgers, events) to a sharded PostgreSQL cluster using consistent hashing.
-6. **Reporting Service (`Java/Spring Boot`)**: Handles analytics, reconciliation, and read-heavy reporting endpoints.
 
 ---
 
